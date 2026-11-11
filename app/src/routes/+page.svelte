@@ -7,6 +7,7 @@
   import HomeHero from "$lib/components/HomeHero.svelte";
   import LaunchOverlay from "$lib/components/LaunchOverlay.svelte";
   import LibraryView from "$lib/components/LibraryView.svelte";
+  import SettingsView from "$lib/components/SettingsView.svelte";
   import Shelf from "$lib/components/Shelf.svelte";
   import SteamKeyDialog from "$lib/components/SteamKeyDialog.svelte";
   import {
@@ -20,11 +21,13 @@
     loadFriends,
     loadLibrary,
     onGameSession,
+    openReleasesPage,
     openSteamApiKeyPage,
+    pulseDualSense,
     saveSteamApiKey,
     setGameHidden,
-    setStartFullscreen,
     setStartWithWindows,
+    setToggle,
     toggleFullscreen,
   } from "$lib/api";
   import { clockLabel, greeting, placeholderArt } from "$lib/format";
@@ -40,9 +43,10 @@
     type LibraryFilter,
     type LibrarySort,
   } from "$lib/library";
-  import type { Friend, FriendsResult, Game, LibraryState, Preferences } from "$lib/types";
+  import { settingsRows, type SettingsRow, type SteamKeyState } from "$lib/settings";
+  import type { Friend, FriendsResult, Game, LibraryState, Preferences, Toggle } from "$lib/types";
 
-  type View = "home" | "library";
+  type View = "home" | "library" | "settings";
 
   const KEY_ACTIONS: Record<string, PadAction> = {
     ArrowLeft: "left",
@@ -58,8 +62,6 @@
     E: "nextTab",
     Tab: "menu",
   };
-
-  const SETTINGS_NOTE = "These take effect the next time Lounge starts.";
 
   const LAUNCH_OVERLAY_TIMEOUT_MS = 20_000;
   const CLOCK_REFRESH_MS = 15_000;
@@ -91,9 +93,12 @@
 
   let menuGame = $state<Game | null>(null);
   let menuIndex = $state(0);
-  let settingsOpen = $state(false);
+
   let preferences = $state<Preferences | null>(null);
-  let settingsError = $state<string | null>(null);
+  let settingsIndex = $state(0);
+  let settingsNote = $state<string | null>(null);
+  let viewBeforeSettings: "home" | "library" = "home";
+  const showFriends = $derived(preferences?.showFriends ?? true);
 
   const allGames = $derived(library.status === "ready" ? library.games : []);
   const homeGames = $derived(allGames.filter((game) => !game.hidden));
@@ -119,8 +124,12 @@
   const heroUrl = $derived(selected ? usableImage(selected.images.hero) : null);
 
   const feedback = () => {
-    if (inputMode !== "keyboard") {
-      pulse();
+    if (inputMode === "keyboard" || preferences?.vibration === false) {
+      return;
+    }
+    pulse();
+    if (inputMode === "playstation") {
+      pulseDualSense();
     }
   };
 
@@ -214,7 +223,6 @@
 
   const closeMenu = () => {
     menuGame = null;
-    settingsOpen = false;
   };
 
   const openMenu = (game: Game | null) => {
@@ -224,57 +232,67 @@
     }
   };
 
-  const openSettings = async () => {
-    menuIndex = 0;
-    settingsError = null;
-    settingsOpen = true;
+  const loadPreferences = async () => {
     try {
       preferences = await getPreferences();
     } catch (error) {
-      settingsError = `Couldn't read your settings: ${error}`;
+      settingsNote = `Couldn't read your settings: ${error}`;
     }
   };
 
-  const updatePreference = async (key: "startWithWindows" | "startFullscreen", save: (enabled: boolean) => Promise<void>) => {
+  const openSettings = () => {
+    if (view !== "settings") {
+      viewBeforeSettings = view;
+    }
+    settingsIndex = 0;
+    settingsNote = null;
+    view = "settings";
+    loadPreferences();
+  };
+
+  const closeSettings = () => {
+    view = viewBeforeSettings;
+    homeZone = "shelf";
+  };
+
+  const flipSetting = async (key: Toggle | "startWithWindows") => {
     if (!preferences) {
       return;
     }
     const enabled = !preferences[key];
     preferences = { ...preferences, [key]: enabled };
-    settingsError = null;
+    settingsNote = key === "startFullscreen" ? "Lounge will open in this mode next time." : null;
     try {
-      await save(enabled);
+      await (key === "startWithWindows" ? setStartWithWindows(enabled) : setToggle(key, enabled));
+      if (key === "vibration" && enabled) {
+        feedback();
+      }
     } catch (error) {
       preferences = { ...preferences, [key]: !enabled };
-      settingsError = `Couldn't save this setting: ${error}`;
+      settingsNote = `Couldn't save this setting: ${error}`;
     }
   };
 
-  const onOff = (enabled: boolean) => (enabled ? "On" : "Off");
+  const steamKeyState = $derived<SteamKeyState>(
+    friendsResult.status === "loading" ? "unknown" : friendsResult.status === "not-configured" ? "missing" : "connected",
+  );
 
-  const settingsItems = $derived.by<MenuItem[]>(() => {
-    const current = preferences;
-    const startupValue = !current ? "…" : current.startWithWindowsAvailable ? onOff(current.startWithWindows) : "Installed app only";
-    return [
-      {
-        id: "start-with-windows",
-        label: "Start with Windows",
-        value: startupValue,
-        run: () => {
-          if (current?.startWithWindowsAvailable) {
-            updatePreference("startWithWindows", setStartWithWindows);
-          }
-        },
-      },
-      {
-        id: "start-fullscreen",
-        label: "Open in full screen",
-        value: current ? onOff(current.startFullscreen) : "…",
-        run: () => updatePreference("startFullscreen", setStartFullscreen),
-      },
-      { id: "close", label: "Close", run: closeMenu },
-    ];
-  });
+  const rows = $derived<SettingsRow[]>(preferences ? settingsRows(preferences, steamKeyState) : []);
+
+  const activateSetting = (row: SettingsRow) => {
+    if (row.kind === "toggle") {
+      if (row.available) {
+        flipSetting(row.toggle);
+      }
+    } else if (row.action === "steam-key") {
+      keyDialogOpen = true;
+    } else if (row.action === "remove-key") {
+      forgetKey();
+      settingsIndex = Math.max(0, settingsIndex - 1);
+    } else {
+      openReleasesPage().catch((error) => (settingsNote = `Couldn't open the releases page: ${error}`));
+    }
+  };
 
   const gameMenuItems = $derived.by<MenuItem[]>(() => {
     const game = menuGame;
@@ -294,10 +312,9 @@
     ];
   });
 
-  const menuOpen = $derived(menuGame !== null || settingsOpen);
-  const menuItems = $derived(menuGame ? gameMenuItems : settingsOpen ? settingsItems : []);
+  const menuItems = $derived(gameMenuItems);
 
-  const switchView = (target: View) => {
+  const switchView = (target: "home" | "library") => {
     if (view === target) {
       return;
     }
@@ -360,7 +377,7 @@
   const runHomeAction = (action: PadAction) => {
     if (homeZone === "friends") {
       runFriendsAction(action);
-    } else if (action === "up" && (visibleFriends.length > 0 || friendsNeedSetup)) {
+    } else if (action === "up" && showFriends && (visibleFriends.length > 0 || friendsNeedSetup)) {
       homeZone = "friends";
       friendIndex = 0;
     } else if (action === "left" || action === "right") {
@@ -412,6 +429,20 @@
     }
   };
 
+  const runSettingsAction = (action: PadAction) => {
+    if (action === "up" || action === "down") {
+      const next = Math.max(0, Math.min(rows.length - 1, settingsIndex + (action === "down" ? 1 : -1)));
+      if (next !== settingsIndex) {
+        settingsIndex = next;
+        feedback();
+      }
+    } else if (action === "confirm" && rows[settingsIndex]) {
+      activateSetting(rows[settingsIndex]);
+    } else if (action === "back" || action === "menu") {
+      closeSettings();
+    }
+  };
+
   const runAction = (action: PadAction) => {
     if (keyDialogOpen) {
       if (action === "back") {
@@ -419,7 +450,7 @@
       }
       return;
     }
-    if (menuOpen) {
+    if (menuGame) {
       runMenuAction(action);
       return;
     }
@@ -429,10 +460,12 @@
       }
       return;
     }
-    if (action === "menu") {
-      openSettings();
-    } else if (action === "previousTab" || action === "nextTab") {
+    if (action === "previousTab" || action === "nextTab") {
       switchView(action === "nextTab" ? "library" : "home");
+    } else if (view === "settings") {
+      runSettingsAction(action);
+    } else if (action === "menu") {
+      openSettings();
     } else if (view === "home") {
       runHomeAction(action);
     } else {
@@ -458,6 +491,14 @@
   };
 
   const hints = $derived.by<Hint[]>(() => {
+    if (view === "settings") {
+      const row = rows[settingsIndex];
+      return [
+        { action: "navigate", label: "Navigate" },
+        ...(row ? [{ action: "confirm" as const, label: row.kind === "toggle" ? "Turn on or off" : "Select" }] : []),
+        { action: "back", label: "Back" },
+      ];
+    }
     if (view === "library") {
       return [
         { action: "navigate", label: "Navigate" },
@@ -491,6 +532,7 @@
   onMount(() => {
     refreshLibrary();
     refreshFriends();
+    loadPreferences();
 
     const stopGamepads = watchGamepads((action, family) => {
       inputMode = family;
@@ -504,7 +546,7 @@
     }, CLOCK_REFRESH_MS);
 
     const friendsTimer = setInterval(() => {
-      if (document.visibilityState === "visible" && friendsResult.status === "ready") {
+      if (document.visibilityState === "visible" && showFriends && friendsResult.status === "ready") {
         refreshFriends();
       }
     }, FRIENDS_REFRESH_MS);
@@ -541,7 +583,7 @@
 />
 
 <div class="screen">
-  {#if view === "library"}
+  {#if view !== "home"}
     <div class="ambient" aria-hidden="true"></div>
   {/if}
   {#if view === "home" && selected}
@@ -568,7 +610,14 @@
       </nav>
       <div class="top-right">
         <span class="clock">{clockLabel(now)}</span>
-        <button type="button" class="settings-button" aria-label="Settings" onclick={openSettings}>
+        <button
+          type="button"
+          class="settings-button"
+          class:active={view === "settings"}
+          aria-label="Settings"
+          aria-current={view === "settings" ? "page" : undefined}
+          onclick={() => (view === "settings" ? closeSettings() : openSettings())}
+        >
           <svg aria-hidden="true" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
             <path d="M12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6z" />
             <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z" />
@@ -577,7 +626,15 @@
       </div>
     </header>
 
-    {#if library.status === "loading"}
+    {#if view === "settings"}
+      <SettingsView
+        {rows}
+        focusedIndex={settingsIndex}
+        note={settingsNote}
+        onFocus={(index) => (settingsIndex = index)}
+        onActivate={activateSetting}
+      />
+    {:else if library.status === "loading"}
       <section class="message" aria-live="polite">
         <p class="message-title">Loading your library…</p>
       </section>
@@ -632,14 +689,16 @@
           onBroken={markBroken}
           onPrimary={() => selected && playOrReturn(selected)}
         />
-        <FriendsPanel
-          result={friendsResult}
-          focusedIndex={homeZone === "friends" ? friendIndex : null}
-          panelFocused={homeZone === "friends" && friendsNeedSetup}
-          onConnect={() => (keyDialogOpen = true)}
-          onRetry={refreshFriends}
-          onJoin={join}
-        />
+        {#if showFriends}
+          <FriendsPanel
+            result={friendsResult}
+            focusedIndex={homeZone === "friends" ? friendIndex : null}
+            panelFocused={homeZone === "friends" && friendsNeedSetup}
+            onConnect={() => (keyDialogOpen = true)}
+            onRetry={refreshFriends}
+            onJoin={join}
+          />
+        {/if}
       </div>
 
       <section class="shelf" aria-label="Recently played">
@@ -677,13 +736,12 @@
     />
   {/if}
 
-  {#if menuOpen}
+  {#if menuGame}
     <GameMenu
-      title={menuGame ? menuGame.name : "Settings"}
+      title={menuGame.name}
       items={menuItems}
       focusedIndex={menuIndex}
       mode={inputMode}
-      note={menuGame ? null : (settingsError ?? SETTINGS_NOTE)}
       onFocus={(index) => (menuIndex = index)}
       onClose={closeMenu}
     />
@@ -791,6 +849,11 @@
   .settings-button:hover {
     background: var(--glass);
     color: var(--text);
+  }
+
+  .settings-button.active {
+    background: var(--text);
+    color: var(--bg);
   }
 
   nav {

@@ -39,10 +39,14 @@ struct Preferences {
     start_with_windows: bool,
     start_with_windows_available: bool,
     start_fullscreen: bool,
+    vibration: bool,
+    show_friends: bool,
+    version: String,
 }
 
 const ALLOWED_LAUNCH_PREFIXES: [&str; 3] = ["steam://rungameid/", "steam://joinlobby/", "com.epicgames.launcher://apps/"];
 const STEAM_API_KEY_PAGE: &str = "https://steamcommunity.com/dev/apikey";
+const RELEASES_PAGE: &str = "https://github.com/tguillain/lounge/releases";
 const ONE_INSTANCE_ONLY: bool = !cfg!(debug_assertions);
 
 #[tauri::command]
@@ -67,6 +71,16 @@ fn open_steam_api_key_page(app: tauri::AppHandle) -> Result<(), String> {
     app.opener().open_url(STEAM_API_KEY_PAGE, None::<&str>).map_err(|error| error.to_string())
 }
 
+#[tauri::command]
+fn open_releases_page(app: tauri::AppHandle) -> Result<(), String> {
+    app.opener().open_url(RELEASES_PAGE, None::<&str>).map_err(|error| error.to_string())
+}
+
+#[tauri::command]
+fn pulse_controller(pad: tauri::State<'_, pad::PadControl>) {
+    pad.pulse();
+}
+
 fn logo_cache_dir(app: &tauri::AppHandle) -> Option<PathBuf> {
     let dir = app.path().app_cache_dir().ok()?.join("logos");
     std::fs::create_dir_all(&dir).ok()?;
@@ -75,10 +89,14 @@ fn logo_cache_dir(app: &tauri::AppHandle) -> Option<PathBuf> {
 
 #[tauri::command]
 fn get_preferences(app: tauri::AppHandle) -> Result<Preferences, String> {
+    let saved = settings::load(&settings::path(&app)?);
     Ok(Preferences {
         start_with_windows: autostart::is_enabled(),
         start_with_windows_available: autostart::AVAILABLE,
-        start_fullscreen: settings::load(&settings::path(&app)?).start_fullscreen,
+        start_fullscreen: saved.start_fullscreen,
+        vibration: saved.vibration,
+        show_friends: saved.show_friends,
+        version: app.package_info().version.to_string(),
     })
 }
 
@@ -88,8 +106,8 @@ fn set_start_with_windows(enabled: bool) -> Result<(), String> {
 }
 
 #[tauri::command]
-fn set_start_fullscreen(app: tauri::AppHandle, enabled: bool) -> Result<(), String> {
-    settings::set_start_fullscreen(&settings::path(&app)?, enabled)
+fn set_toggle(app: tauri::AppHandle, toggle: settings::Toggle, enabled: bool) -> Result<(), String> {
+    settings::set_toggle(&settings::path(&app)?, toggle, enabled)
 }
 
 #[tauri::command]
@@ -225,7 +243,9 @@ pub fn run() {
             set_game_hidden,
             get_preferences,
             set_start_with_windows,
-            set_start_fullscreen,
+            set_toggle,
+            open_releases_page,
+            pulse_controller,
             launch_game,
             get_session,
             get_friends,

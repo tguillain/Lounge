@@ -5,13 +5,40 @@ use std::path::{Path, PathBuf};
 use serde::{Deserialize, Serialize};
 use tauri::{AppHandle, Manager};
 
-#[derive(Debug, Default, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Settings {
     #[serde(default)]
     pub hidden_games: BTreeSet<String>,
     #[serde(default)]
     pub start_fullscreen: bool,
+    #[serde(default = "enabled")]
+    pub vibration: bool,
+    #[serde(default = "enabled")]
+    pub show_friends: bool,
+}
+
+impl Default for Settings {
+    fn default() -> Self {
+        Self {
+            hidden_games: BTreeSet::new(),
+            start_fullscreen: false,
+            vibration: true,
+            show_friends: true,
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub enum Toggle {
+    StartFullscreen,
+    Vibration,
+    ShowFriends,
+}
+
+fn enabled() -> bool {
+    true
 }
 
 pub fn path(app: &AppHandle) -> Result<PathBuf, String> {
@@ -46,9 +73,14 @@ pub fn set_hidden(path: &Path, game_id: &str, hidden: bool) -> Result<(), String
     save(path, &settings)
 }
 
-pub fn set_start_fullscreen(path: &Path, enabled: bool) -> Result<(), String> {
+pub fn set_toggle(path: &Path, toggle: Toggle, enabled: bool) -> Result<(), String> {
     let mut settings = load(path);
-    settings.start_fullscreen = enabled;
+    let field = match toggle {
+        Toggle::StartFullscreen => &mut settings.start_fullscreen,
+        Toggle::Vibration => &mut settings.vibration,
+        Toggle::ShowFriends => &mut settings.show_friends,
+    };
+    *field = enabled;
     save(path, &settings)
 }
 
@@ -78,19 +110,23 @@ mod tests {
     }
 
     #[test]
-    fn tolerates_a_file_without_the_hidden_list() {
-        let settings: Settings = serde_json::from_str("{}").unwrap();
-        assert!(settings.hidden_games.is_empty());
+    fn tolerates_a_file_from_an_older_version() {
+        let settings: Settings = serde_json::from_str(r#"{ "hiddenGames": ["steam:730"] }"#).unwrap();
+        assert!(settings.hidden_games.contains("steam:730"));
         assert!(!settings.start_fullscreen);
+        assert!(settings.vibration && settings.show_friends);
     }
 
     #[test]
-    fn keeps_hidden_games_when_turning_full_screen_on() {
-        let path = temp_settings_path("fullscreen");
+    fn changes_one_toggle_and_keeps_everything_else() {
+        let path = temp_settings_path("toggles");
         set_hidden(&path, "steam:730", true).unwrap();
-        set_start_fullscreen(&path, true).unwrap();
+        set_toggle(&path, Toggle::StartFullscreen, true).unwrap();
+        set_toggle(&path, Toggle::Vibration, false).unwrap();
         let settings = load(&path);
         assert!(settings.start_fullscreen);
+        assert!(!settings.vibration);
+        assert!(settings.show_friends);
         assert!(settings.hidden_games.contains("steam:730"));
         let _ = fs::remove_dir_all(path.parent().unwrap());
     }

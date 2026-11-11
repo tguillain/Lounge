@@ -1,17 +1,34 @@
+use std::sync::mpsc::{self, Receiver, Sender};
 use std::thread;
-use std::time::Duration;
+use std::time::{Duration, Instant};
 
 use hidapi::{HidApi, HidDevice};
-use tauri::AppHandle;
+use tauri::{AppHandle, Manager};
 
 use crate::quick_menu;
 
 const SONY_VENDOR_ID: u16 = 0x054C;
 const DUALSENSE_PRODUCT_IDS: [u16; 2] = [0x0CE6, 0x0DF2];
 const RETRY_DELAY: Duration = Duration::from_secs(3);
-const READ_TIMEOUT_MS: i32 = 1000;
+const READ_TIMEOUT_MS: i32 = 50;
 const STICK_UP_THRESHOLD: u8 = 48;
 const STICK_DOWN_THRESHOLD: u8 = 208;
+const USB_INPUT_LENGTH: usize = 64;
+const USB_OUTPUT_REPORT_ID: u8 = 0x02;
+const USB_OUTPUT_LENGTH: usize = 48;
+const RUMBLE_FLAGS: u8 = 0x03;
+const PULSE_STRENGTH: u8 = 0x70;
+const PULSE_DURATION: Duration = Duration::from_millis(35);
+
+pub struct PadControl {
+    pulses: Sender<()>,
+}
+
+impl PadControl {
+    pub fn pulse(&self) {
+        let _ = self.pulses.send(());
+    }
+}
 
 #[derive(Debug, Default, Clone, Copy, PartialEq, Eq)]
 pub struct Buttons {
@@ -38,11 +55,13 @@ pub enum PadButton {
 }
 
 pub fn spawn(app: AppHandle) {
+    let (sender, pulses) = mpsc::channel();
+    app.manage(PadControl { pulses: sender });
     thread::spawn(move || loop {
         if let Ok(mut api) = HidApi::new() {
             loop {
                 if let Some(device) = open_dualsense(&api) {
-                    read_until_disconnected(&app, &device);
+                    read_until_disconnected(&app, &device, &pulses);
                 }
                 thread::sleep(RETRY_DELAY);
                 let _ = api.refresh_devices();
@@ -58,13 +77,28 @@ fn open_dualsense(api: &HidApi) -> Option<HidDevice> {
         .and_then(|info| info.open_device(api).ok())
 }
 
-fn read_until_disconnected(app: &AppHandle, device: &HidDevice) {
+fn read_until_disconnected(app: &AppHandle, device: &HidDevice, pulses: &Receiver<()>) {
     let mut buffer = [0u8; 128];
     let mut previous = Buttons::default();
+    let mut wired = false;
+    let mut rumble_ends_at: Option<Instant> = None;
+    pulses.try_iter().for_each(drop);
     loop {
-        match device.read_timeout(&mut buffer, READ_TIMEOUT_MS) {
+        let pulse_requested = pulses.try_iter().count() > 0;
+        if pulse_requested && wired && device.write(&usb_rumble_report(PULSE_STRENGTH)).is_ok() {
+            rumble_ends_at = Some(Instant::now() + PULSE_DURATION);
+        }
+        if rumble_ends_at.is_some_and(|end| Instant::now() >= end) {
+            let _ = device.write(&usb_rumble_report(0));
+            rumble_ends_at = None;
+        }
+        let timeout = rumble_ends_at
+            .map(|end| end.saturating_duration_since(Instant::now()).as_millis().clamp(1, READ_TIMEOUT_MS as u128) as i32)
+            .unwrap_or(READ_TIMEOUT_MS);
+        match device.read_timeout(&mut buffer, timeout) {
             Ok(0) => continue,
             Ok(length) => {
+                wired = is_usb_report(&buffer[..length]);
                 if let Some(current) = parse_report(&buffer[..length]) {
                     for button in newly_pressed(previous, current) {
                         quick_menu::handle_button(app, button);
@@ -75,6 +109,18 @@ fn read_until_disconnected(app: &AppHandle, device: &HidDevice) {
             Err(_) => return,
         }
     }
+}
+
+pub fn is_usb_report(report: &[u8]) -> bool {
+    report.first() == Some(&0x01) && report.len() >= USB_INPUT_LENGTH
+}
+
+pub fn usb_rumble_report(strength: u8) -> [u8; USB_OUTPUT_LENGTH] {
+    let mut report = [0u8; USB_OUTPUT_LENGTH];
+    report[0] = USB_OUTPUT_REPORT_ID;
+    report[1] = RUMBLE_FLAGS;
+    report[3] = strength;
+    report
 }
 
 pub fn parse_report(report: &[u8]) -> Option<Buttons> {
@@ -183,6 +229,21 @@ mod tests {
     fn ignores_unknown_reports() {
         assert!(parse_report(&[0x05, 1, 2]).is_none());
         assert!(parse_report(&[]).is_none());
+    }
+
+    #[test]
+    fn tells_usb_reports_from_bluetooth_ones() {
+        assert!(is_usb_report(&usb_report(DPAD_NONE, 0)));
+        assert!(!is_usb_report(&[0x01, 0x80, 0x80, 0x80, 0x80, 0x08, 0, 0, 0, 0]));
+        assert!(!is_usb_report(&[0x31; 78]));
+    }
+
+    #[test]
+    fn builds_a_usb_rumble_report_for_the_weak_motor() {
+        let report = usb_rumble_report(0x70);
+        assert_eq!(report.len(), 48);
+        assert_eq!(&report[..5], &[0x02, 0x03, 0x00, 0x70, 0x00]);
+        assert!(report[5..].iter().all(|byte| *byte == 0));
     }
 
     #[test]

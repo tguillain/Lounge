@@ -52,4 +52,9 @@ export type Preferences = {
   startWithWindows: boolean;
   startWithWindowsAvailable: boolean;
   startFullscreen: boolean;
+  vibration: boolean;
+  showFriends: boolean;
+  version: string;
 };
+
+export type Toggle = "startFullscreen" | "vibration" | "showFriends";

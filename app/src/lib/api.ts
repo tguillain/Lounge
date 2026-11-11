@@ -4,7 +4,7 @@ import { getCurrentWebviewWindow } from "@tauri-apps/api/webviewWindow";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import type { PadAction } from "./input/gamepad-mapping";
 import { previewLibrary } from "./preview-library";
-import type { Friend, FriendsResult, Game, Preferences, Session } from "./types";
+import type { Friend, FriendsResult, Game, Preferences, Session, Toggle } from "./types";
 
 const runsInTauri = typeof window !== "undefined" && "__TAURI_INTERNALS__" in window;
 
@@ -139,7 +139,14 @@ export const toggleFullscreen = async (): Promise<void> => {
   await appWindow.setFullscreen(!(await appWindow.isFullscreen()));
 };
 
-const previewPreferences: Preferences = { startWithWindows: false, startWithWindowsAvailable: true, startFullscreen: false };
+const previewPreferences: Preferences = {
+  startWithWindows: false,
+  startWithWindowsAvailable: true,
+  startFullscreen: false,
+  vibration: true,
+  showFriends: true,
+  version: "0.1.1",
+};
 
 export const getPreferences = async (): Promise<Preferences> => {
   if (!runsInTauri) {
@@ -156,10 +163,22 @@ export const setStartWithWindows = async (enabled: boolean): Promise<void> => {
   await invoke("set_start_with_windows", { enabled });
 };
 
-export const setStartFullscreen = async (enabled: boolean): Promise<void> => {
+export const setToggle = async (toggle: Toggle, enabled: boolean): Promise<void> => {
   if (!runsInTauri) {
-    previewPreferences.startFullscreen = enabled;
+    previewPreferences[toggle] = enabled;
     return;
   }
-  await invoke("set_start_fullscreen", { enabled });
+  await invoke("set_toggle", { toggle, enabled });
+};
+
+export const openReleasesPage = async (): Promise<void> => {
+  if (runsInTauri) {
+    await invoke("open_releases_page");
+  }
+};
+
+export const pulseDualSense = (): void => {
+  if (runsInTauri) {
+    invoke("pulse_controller").catch(() => {});
+  }
 };
