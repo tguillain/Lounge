@@ -1,5 +1,5 @@
 <script lang="ts" module>
-  export type HintAction = "navigate" | "confirm" | "back" | "options" | "menu" | "fullscreen";
+  export type HintAction = "navigate" | "confirm" | "back" | "options" | "menu" | "tabs" | "fullscreen";
   export type Hint = { action: HintAction; label: string };
 </script>
 
@@ -23,6 +23,7 @@
       back: { kind: "shape", path: CIRCLE },
       options: { kind: "shape", path: TRIANGLE },
       menu: { kind: "key", text: "PS", round: true },
+      tabs: { kind: "key", text: "L1 R1" },
     },
     xbox: {
       navigate: { kind: "dpad" },
@@ -30,13 +31,15 @@
       back: { kind: "letter", text: "B" },
       options: { kind: "letter", text: "Y" },
       menu: { kind: "letter", text: "≡" },
+      tabs: { kind: "key", text: "LB RB" },
     },
     keyboard: {
-      navigate: { kind: "key", text: "← →" },
+      navigate: { kind: "key", text: "Arrows" },
       confirm: { kind: "key", text: "Enter" },
       back: { kind: "key", text: "Esc" },
       options: { kind: "key", text: "Right-click" },
       menu: { kind: "key", text: "Tab" },
+      tabs: { kind: "key", text: "Q E" },
       fullscreen: { kind: "key", text: "F11" },
     },
   };

@@ -25,6 +25,7 @@ pub struct Game {
     pub name: String,
     pub last_played: u64,
     pub size_on_disk: u64,
+    pub play_time: Option<u64>,
     pub launch_uri: String,
     pub images: GameImages,
     pub hidden: bool,

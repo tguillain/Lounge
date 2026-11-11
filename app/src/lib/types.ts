@@ -14,6 +14,7 @@ export type Game = {
   name: string;
   lastPlayed: number;
   sizeOnDisk: number;
+  playTime: number | null;
   launchUri: string;
   images: GameImages;
   hidden: boolean;

@@ -1,4 +1,14 @@
-export type PadAction = "left" | "right" | "up" | "down" | "confirm" | "back" | "options" | "menu";
+export type PadAction =
+  | "left"
+  | "right"
+  | "up"
+  | "down"
+  | "confirm"
+  | "back"
+  | "options"
+  | "menu"
+  | "previousTab"
+  | "nextTab";
 
 export type ControllerFamily = "playstation" | "xbox";
 
@@ -8,6 +18,8 @@ const STANDARD_BUTTON_ACTIONS: Record<number, PadAction> = {
   0: "confirm",
   1: "back",
   3: "options",
+  4: "previousTab",
+  5: "nextTab",
   9: "options",
   12: "up",
   13: "down",

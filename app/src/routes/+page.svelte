@@ -3,8 +3,10 @@
   import { SvelteSet } from "svelte/reactivity";
   import FriendsPanel from "$lib/components/FriendsPanel.svelte";
   import GameMenu, { type MenuItem } from "$lib/components/GameMenu.svelte";
-  import Hints from "$lib/components/Hints.svelte";
+  import Hints, { type Hint } from "$lib/components/Hints.svelte";
+  import HomeHero from "$lib/components/HomeHero.svelte";
   import LaunchOverlay from "$lib/components/LaunchOverlay.svelte";
+  import LibraryView from "$lib/components/LibraryView.svelte";
   import Shelf from "$lib/components/Shelf.svelte";
   import SteamKeyDialog from "$lib/components/SteamKeyDialog.svelte";
   import {
@@ -22,10 +24,22 @@
     setGameHidden,
     toggleFullscreen,
   } from "$lib/api";
-  import { clockLabel, greeting, lastPlayedLabel, placeholderArt, sizeLabel, storeLabel } from "$lib/format";
+  import { clockLabel, greeting, placeholderArt } from "$lib/format";
   import { pulse, watchGamepads } from "$lib/input/gamepad";
   import type { InputMode, PadAction } from "$lib/input/gamepad-mapping";
+  import {
+    availableFilters,
+    DEFAULT_SORT,
+    filterGames,
+    moveInGrid,
+    nextSort,
+    sortGames,
+    type LibraryFilter,
+    type LibrarySort,
+  } from "$lib/library";
   import type { Friend, FriendsResult, Game, LibraryState } from "$lib/types";
+
+  type View = "home" | "library";
 
   const KEY_ACTIONS: Record<string, PadAction> = {
     ArrowLeft: "left",
@@ -35,6 +49,10 @@
     Enter: "confirm",
     Escape: "back",
     ContextMenu: "options",
+    q: "previousTab",
+    Q: "previousTab",
+    e: "nextTab",
+    E: "nextTab",
   };
 
   const LAUNCH_OVERLAY_TIMEOUT_MS = 20_000;
@@ -43,30 +61,70 @@
   const VISIBLE_FRIENDS = 5;
 
   let library = $state<LibraryState>({ status: "loading" });
-  let selectedIndex = $state(0);
+  let view = $state<View>("home");
   let now = $state(new Date());
+  let inputMode = $state<InputMode>("keyboard");
   let launching = $state<Game | null>(null);
   let launchError = $state<string | null>(null);
-  let inputMode = $state<InputMode>("keyboard");
-  let showHidden = $state(false);
-  let menuOpen = $state(false);
-  let menuIndex = $state(0);
   let runningGameId = $state<string | null>(null);
+  let launchTimer: ReturnType<typeof setTimeout> | undefined;
+  const brokenImages = new SvelteSet<string>();
+
+  let selectedIndex = $state(0);
+  let homeZone = $state<"shelf" | "friends">("shelf");
   let friendsResult = $state<FriendsResult>({ status: "loading" });
-  let focusZone = $state<"shelf" | "friends">("shelf");
   let friendIndex = $state(0);
   let keyDialogOpen = $state(false);
-  const brokenImages = new SvelteSet<string>();
-  let launchTimer: ReturnType<typeof setTimeout> | undefined;
+
+  let libraryFilter = $state<LibraryFilter>("all");
+  let librarySort = $state<LibrarySort>(DEFAULT_SORT);
+  let libraryZone = $state<"grid" | "controls">("grid");
+  let libraryIndex = $state(0);
+  let controlIndex = $state(0);
+  let libraryColumns = $state(6);
+
+  let menuGame = $state<Game | null>(null);
+  let menuIndex = $state(0);
 
   const allGames = $derived(library.status === "ready" ? library.games : []);
-  const hiddenCount = $derived(allGames.filter((game) => game.hidden).length);
-  const games = $derived(showHidden ? allGames : allGames.filter((game) => !game.hidden));
-  const selected = $derived<Game | null>(games[selectedIndex] ?? null);
+  const homeGames = $derived(allGames.filter((game) => !game.hidden));
+  const selected = $derived<Game | null>(homeGames[selectedIndex] ?? null);
   const selectedIsRunning = $derived(selected !== null && selected.id === runningGameId);
+
+  const filters = $derived(availableFilters(allGames));
+  const libraryGames = $derived(sortGames(filterGames(allGames, libraryFilter), librarySort));
+  const focusedLibraryGame = $derived<Game | null>(libraryGames[libraryIndex] ?? null);
+
   const visibleFriends = $derived(friendsResult.status === "ready" ? friendsResult.friends.slice(0, VISIBLE_FRIENDS) : []);
   const friendsNeedSetup = $derived(friendsResult.status === "not-configured" || friendsResult.status === "failed");
-  const focusedFriend = $derived<Friend | null>(focusZone === "friends" ? (visibleFriends[friendIndex] ?? null) : null);
+  const focusedFriend = $derived<Friend | null>(homeZone === "friends" ? (visibleFriends[friendIndex] ?? null) : null);
+
+  const isBroken = (url: string) => brokenImages.has(url);
+  const markBroken = (url: string) => brokenImages.add(url);
+
+  const usableImage = (source: string | null): string | null => {
+    const url = imageUrl(source);
+    return url && !brokenImages.has(url) ? url : null;
+  };
+
+  const heroUrl = $derived(selected ? usableImage(selected.images.hero) : null);
+
+  const feedback = () => {
+    if (inputMode !== "keyboard") {
+      pulse();
+    }
+  };
+
+  const refreshLibrary = async () => {
+    try {
+      const loaded = await loadLibrary();
+      library = { status: "ready", games: loaded };
+      selectedIndex = 0;
+      libraryIndex = Math.min(libraryIndex, Math.max(0, libraryGames.length - 1));
+    } catch (error) {
+      library = { status: "error", message: String(error) };
+    }
+  };
 
   const refreshFriends = async () => {
     try {
@@ -88,117 +146,6 @@
     await forgetSteamApiKey();
     keyDialogOpen = false;
     friendsResult = { status: "not-configured" };
-  };
-
-  const join = async (friend: Friend) => {
-    launchError = null;
-    try {
-      await joinFriend(friend);
-    } catch (error) {
-      launchError = `Couldn't join ${friend.name}: ${error}`;
-    }
-  };
-
-  const canFocusFriends = () => visibleFriends.length > 0 || friendsNeedSetup;
-
-  const runFriendsAction = (action: PadAction) => {
-    if (action === "up") {
-      friendIndex = Math.max(0, friendIndex - 1);
-    } else if (action === "down") {
-      if (friendIndex >= visibleFriends.length - 1) {
-        focusZone = "shelf";
-      } else {
-        friendIndex += 1;
-      }
-    } else if (action === "left" || action === "back") {
-      focusZone = "shelf";
-    } else if (action === "confirm") {
-      if (friendsNeedSetup) {
-        keyDialogOpen = true;
-      } else if (focusedFriend?.joinUri) {
-        join(focusedFriend);
-      }
-    }
-  };
-
-  const toggleHidden = async (game: Game) => {
-    const hidden = !game.hidden;
-    if (library.status === "ready") {
-      library = { status: "ready", games: library.games.map((g) => (g.id === game.id ? { ...g, hidden } : g)) };
-    }
-    selectedIndex = Math.max(0, Math.min(selectedIndex, games.length - 1));
-    try {
-      await setGameHidden(game, hidden);
-    } catch (error) {
-      launchError = `Couldn't save your choice for ${game.name}: ${error}`;
-    }
-  };
-
-  const toggleShowHidden = () => {
-    const keepId = selected?.id;
-    showHidden = !showHidden;
-    selectedIndex = Math.max(0, games.findIndex((game) => game.id === keepId));
-  };
-
-  const closeMenu = () => {
-    menuOpen = false;
-  };
-
-  const menuItems = $derived.by<MenuItem[]>(() => {
-    if (!selected) {
-      return [];
-    }
-    const game = selected;
-    const items: MenuItem[] = [
-      {
-        id: "hide",
-        label: game.hidden ? "Show on Home" : "Hide from Home",
-        run: () => {
-          closeMenu();
-          toggleHidden(game);
-        },
-      },
-    ];
-    if (hiddenCount > 0 || showHidden) {
-      items.push({
-        id: "show-hidden",
-        label: showHidden ? "Stop showing hidden games" : `Show hidden games (${hiddenCount})`,
-        run: () => {
-          closeMenu();
-          toggleShowHidden();
-        },
-      });
-    }
-    items.push({ id: "close", label: "Close", run: closeMenu });
-    return items;
-  });
-
-  const openMenu = () => {
-    if (!selected) {
-      return;
-    }
-    menuIndex = 0;
-    menuOpen = true;
-  };
-
-  const usableImage = (source: string | null): string | null => {
-    const url = imageUrl(source);
-    return url && !brokenImages.has(url) ? url : null;
-  };
-
-  const heroUrl = $derived(selected ? usableImage(selected.images.hero) : null);
-  const logoUrl = $derived(selected ? usableImage(selected.images.logo) : null);
-  const lastPlayed = $derived(selected ? lastPlayedLabel(selected.lastPlayed, now.getTime() / 1000) : null);
-  const size = $derived(selected ? sizeLabel(selected.sizeOnDisk) : null);
-
-  const refreshLibrary = async () => {
-    try {
-      const loaded = await loadLibrary();
-      library = { status: "ready", games: loaded };
-      selectedIndex = 0;
-    } catch (error) {
-      library = { status: "error", message: String(error) };
-    }
   };
 
   const closeLaunchOverlay = () => {
@@ -230,26 +177,173 @@
 
   const playOrReturn = (game: Game) => (game.id === runningGameId ? returnToGame() : play(game));
 
-  const moveSelection = (step: number): boolean => {
-    const next = Math.min(games.length - 1, Math.max(0, selectedIndex + step));
-    if (games.length === 0 || next === selectedIndex) {
-      return false;
+  const join = async (friend: Friend) => {
+    launchError = null;
+    try {
+      await joinFriend(friend);
+    } catch (error) {
+      launchError = `Couldn't join ${friend.name}: ${error}`;
     }
-    selectedIndex = next;
-    return true;
+  };
+
+  const toggleHidden = async (game: Game) => {
+    const hidden = !game.hidden;
+    if (library.status === "ready") {
+      library = { status: "ready", games: library.games.map((g) => (g.id === game.id ? { ...g, hidden } : g)) };
+    }
+    selectedIndex = Math.max(0, Math.min(selectedIndex, homeGames.length - 1));
+    libraryIndex = Math.max(0, Math.min(libraryIndex, libraryGames.length - 1));
+    if (libraryGames.length === 0 && libraryFilter === "hidden") {
+      libraryFilter = "all";
+    }
+    try {
+      await setGameHidden(game, hidden);
+    } catch (error) {
+      launchError = `Couldn't save your choice for ${game.name}: ${error}`;
+    }
+  };
+
+  const closeMenu = () => {
+    menuGame = null;
+  };
+
+  const openMenu = (game: Game | null) => {
+    if (game) {
+      menuIndex = 0;
+      menuGame = game;
+    }
+  };
+
+  const menuItems = $derived.by<MenuItem[]>(() => {
+    const game = menuGame;
+    if (!game) {
+      return [];
+    }
+    return [
+      {
+        id: "hide",
+        label: game.hidden ? "Show on Home" : "Hide from Home",
+        run: () => {
+          closeMenu();
+          toggleHidden(game);
+        },
+      },
+      { id: "close", label: "Close", run: closeMenu },
+    ];
+  });
+
+  const switchView = (target: View) => {
+    if (view === target) {
+      return;
+    }
+    view = target;
+    homeZone = "shelf";
+    libraryZone = "grid";
+    feedback();
+  };
+
+  const selectFilter = (filter: LibraryFilter) => {
+    libraryFilter = filter;
+    libraryIndex = 0;
+  };
+
+  const cycleSort = () => {
+    librarySort = nextSort(librarySort);
+    libraryIndex = 0;
+  };
+
+  const moveSelection = (step: number) => {
+    const next = Math.min(homeGames.length - 1, Math.max(0, selectedIndex + step));
+    if (homeGames.length > 0 && next !== selectedIndex) {
+      selectedIndex = next;
+      feedback();
+    }
   };
 
   const runMenuAction = (action: PadAction) => {
     if (action === "up" || action === "down") {
       const step = action === "down" ? 1 : -1;
       menuIndex = (menuIndex + step + menuItems.length) % menuItems.length;
-      if (inputMode !== "keyboard") {
-        pulse();
-      }
+      feedback();
     } else if (action === "confirm") {
       menuItems[menuIndex]?.run();
     } else if (action === "back" || action === "options") {
       closeMenu();
+    }
+  };
+
+  const runFriendsAction = (action: PadAction) => {
+    if (action === "up") {
+      friendIndex = Math.max(0, friendIndex - 1);
+    } else if (action === "down") {
+      if (friendIndex >= visibleFriends.length - 1) {
+        homeZone = "shelf";
+      } else {
+        friendIndex += 1;
+      }
+    } else if (action === "left" || action === "back") {
+      homeZone = "shelf";
+    } else if (action === "confirm") {
+      if (friendsNeedSetup) {
+        keyDialogOpen = true;
+      } else if (focusedFriend?.joinUri) {
+        join(focusedFriend);
+      }
+    }
+  };
+
+  const runHomeAction = (action: PadAction) => {
+    if (homeZone === "friends") {
+      runFriendsAction(action);
+    } else if (action === "up" && (visibleFriends.length > 0 || friendsNeedSetup)) {
+      homeZone = "friends";
+      friendIndex = 0;
+    } else if (action === "left" || action === "right") {
+      moveSelection(action === "right" ? 1 : -1);
+    } else if (action === "confirm" && selected) {
+      playOrReturn(selected);
+    } else if (action === "options") {
+      openMenu(selected);
+    }
+  };
+
+  const runControlsAction = (action: PadAction) => {
+    const lastControl = filters.length;
+    if (action === "left" || action === "right") {
+      controlIndex = Math.max(0, Math.min(lastControl, controlIndex + (action === "right" ? 1 : -1)));
+    } else if (action === "down") {
+      libraryZone = "grid";
+    } else if (action === "confirm") {
+      if (controlIndex === lastControl) {
+        cycleSort();
+      } else {
+        selectFilter(filters[controlIndex].id);
+      }
+    } else if (action === "back") {
+      switchView("home");
+    }
+  };
+
+  const runLibraryAction = (action: PadAction) => {
+    if (libraryZone === "controls") {
+      runControlsAction(action);
+      return;
+    }
+    if (action === "left" || action === "right" || action === "up" || action === "down") {
+      const move = moveInGrid(libraryIndex, action, libraryColumns, libraryGames.length);
+      if (move.leftTop || libraryGames.length === 0) {
+        libraryZone = "controls";
+        controlIndex = Math.max(0, filters.findIndex((filter) => filter.id === libraryFilter));
+      } else if (move.index !== libraryIndex) {
+        libraryIndex = move.index;
+        feedback();
+      }
+    } else if (action === "confirm" && focusedLibraryGame) {
+      playOrReturn(focusedLibraryGame);
+    } else if (action === "options") {
+      openMenu(focusedLibraryGame);
+    } else if (action === "back") {
+      switchView("home");
     }
   };
 
@@ -260,7 +354,7 @@
       }
       return;
     }
-    if (menuOpen) {
+    if (menuGame) {
       runMenuAction(action);
       return;
     }
@@ -270,23 +364,12 @@
       }
       return;
     }
-    if (focusZone === "friends") {
-      runFriendsAction(action);
-      return;
-    }
-    if (action === "up" && canFocusFriends()) {
-      focusZone = "friends";
-      friendIndex = 0;
-      return;
-    }
-    if (action === "left" || action === "right") {
-      if (moveSelection(action === "right" ? 1 : -1) && inputMode !== "keyboard") {
-        pulse();
-      }
-    } else if (action === "confirm" && selected) {
-      playOrReturn(selected);
-    } else if (action === "options") {
-      openMenu();
+    if (action === "previousTab" || action === "nextTab") {
+      switchView(action === "nextTab" ? "library" : "home");
+    } else if (view === "home") {
+      runHomeAction(action);
+    } else {
+      runLibraryAction(action);
     }
   };
 
@@ -307,8 +390,38 @@
     }
   };
 
+  const hints = $derived.by<Hint[]>(() => {
+    if (view === "library") {
+      return [
+        { action: "navigate", label: "Navigate" },
+        {
+          action: "confirm",
+          label: libraryZone === "controls" ? "Select" : focusedLibraryGame?.id === runningGameId ? "Back to game" : "Play",
+        },
+        { action: "options", label: "Options" },
+        { action: "tabs", label: "Home" },
+      ];
+    }
+    if (homeZone === "friends") {
+      return [
+        { action: "navigate", label: "Navigate" },
+        ...(friendsNeedSetup ? [{ action: "confirm" as const, label: "Connect" }] : []),
+        ...(focusedFriend?.joinUri ? [{ action: "confirm" as const, label: "Join" }] : []),
+        { action: "back", label: "Back to games" },
+      ];
+    }
+    return [
+      { action: "navigate", label: "Navigate" },
+      { action: "confirm", label: selectedIsRunning ? "Back to game" : "Play" },
+      { action: "options", label: "Options" },
+      { action: "tabs", label: "Library" },
+      { action: "fullscreen", label: "Full screen" },
+    ];
+  });
+
   onMount(() => {
     refreshLibrary();
+    refreshFriends();
 
     const stopGamepads = watchGamepads((action, family) => {
       inputMode = family;
@@ -321,7 +434,6 @@
       }
     }, CLOCK_REFRESH_MS);
 
-    refreshFriends();
     const friendsTimer = setInterval(() => {
       if (document.visibilityState === "visible" && friendsResult.status === "ready") {
         refreshFriends();
@@ -360,23 +472,27 @@
 />
 
 <div class="screen">
-  {#if selected}
+  {#if view === "home" && selected}
     {#key selected.id}
       <div class="hero-art" style:background={placeholderArt(selected.name)}>
         {#if heroUrl}
-          <img src={heroUrl} alt="" decoding="async" onerror={() => brokenImages.add(heroUrl)} />
+          <img src={heroUrl} alt="" decoding="async" onerror={() => markBroken(heroUrl)} />
         {/if}
       </div>
     {/key}
+    <div class="scrim"></div>
   {/if}
-  <div class="scrim"></div>
 
   <div class="layout">
     <header class="top-bar">
       <span class="greeting">{greeting(now)}</span>
       <nav aria-label="Main navigation">
-        <span class="tab active" aria-current="page">Home</span>
-        <span class="tab" aria-disabled="true" title="Coming soon">Library</span>
+        <button type="button" class="tab" class:active={view === "home"} aria-current={view === "home" ? "page" : undefined} onclick={() => switchView("home")}>
+          Home
+        </button>
+        <button type="button" class="tab" class:active={view === "library"} aria-current={view === "library" ? "page" : undefined} onclick={() => switchView("library")}>
+          Library
+        </button>
       </nav>
       <span class="clock">{clockLabel(now)}</span>
     </header>
@@ -391,11 +507,33 @@
         <p class="message-body">{library.message}</p>
         <button type="button" class="secondary" onclick={refreshLibrary}>Try again</button>
       </section>
+    {:else if view === "library"}
+      <LibraryView
+        games={libraryGames}
+        {filters}
+        activeFilter={libraryFilter}
+        sort={librarySort}
+        focusedIndex={libraryZone === "grid" ? libraryIndex : null}
+        focusedControl={libraryZone === "controls" ? controlIndex : null}
+        {runningGameId}
+        {now}
+        {isBroken}
+        onBroken={markBroken}
+        onFilter={selectFilter}
+        onCycleSort={cycleSort}
+        onFocusGame={(index) => {
+          libraryZone = "grid";
+          libraryIndex = index;
+        }}
+        onActivate={playOrReturn}
+        onOptions={openMenu}
+        onColumns={(columns) => (libraryColumns = columns)}
+      />
     {:else if !selected && allGames.length > 0}
       <section class="message">
         <p class="message-title">All your games are hidden</p>
-        <p class="message-body">Show them to bring some back to Home.</p>
-        <button type="button" class="secondary" onclick={toggleShowHidden}>Show hidden games</button>
+        <p class="message-body">Open the Library to bring some back to Home.</p>
+        <button type="button" class="secondary" onclick={() => switchView("library")}>Open Library</button>
       </section>
     {:else if !selected}
       <section class="message">
@@ -405,90 +543,48 @@
       </section>
     {:else}
       <div class="main-row">
-      <section class="hero" aria-label="Selected game">
-        <div class="title-slot">
-          {#key selected.id}
-            {#if logoUrl}
-              <img class="logo" class:light={selected.images.logoIsDark} src={logoUrl} alt={selected.name} onerror={() => brokenImages.add(logoUrl)} />
-            {:else}
-              <h1>{selected.name}</h1>
-            {/if}
-          {/key}
-        </div>
-        <div class="meta">
-          <span class="pill">{storeLabel(selected.store)}</span>
-          {#if selectedIsRunning}
-            <span class="live"><span class="live-dot"></span>Now playing</span>
-          {:else if lastPlayed}
-            <span>Last played {lastPlayed}</span>
-          {:else}
-            <span>Never played</span>
-          {/if}
-          {#if size}
-            <span class="dot" aria-hidden="true">·</span>
-            <span>{size}</span>
-          {/if}
-        </div>
-        <div class="actions">
-          <button type="button" class="primary" onclick={() => selected && playOrReturn(selected)}>
-            {#if selectedIsRunning}
-              <svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6" /></svg>
-              Back to game
-            {:else}
-              <svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24"><path d="M6 3.8v16.4a1 1 0 0 0 1.5.9l13.2-8.2a1 1 0 0 0 0-1.8L7.5 2.9A1 1 0 0 0 6 3.8z" fill="currentColor" /></svg>
-              Play
-            {/if}
-          </button>
-        </div>
-        {#if launchError}
-          <p class="error" role="alert">{launchError}</p>
-        {/if}
-      </section>
-
-      <FriendsPanel
-        result={friendsResult}
-        focusedIndex={focusZone === "friends" ? friendIndex : null}
-        panelFocused={focusZone === "friends" && friendsNeedSetup}
-        onConnect={() => (keyDialogOpen = true)}
-        onRetry={refreshFriends}
-        onJoin={join}
-      />
+        <HomeHero
+          game={selected}
+          running={selectedIsRunning}
+          {now}
+          error={launchError}
+          {isBroken}
+          onBroken={markBroken}
+          onPrimary={() => selected && playOrReturn(selected)}
+        />
+        <FriendsPanel
+          result={friendsResult}
+          focusedIndex={homeZone === "friends" ? friendIndex : null}
+          panelFocused={homeZone === "friends" && friendsNeedSetup}
+          onConnect={() => (keyDialogOpen = true)}
+          onRetry={refreshFriends}
+          onJoin={join}
+        />
       </div>
 
       <section class="shelf" aria-label="Recently played">
         <h2>Recently played</h2>
         <Shelf
-          {games}
+          games={homeGames}
           {selectedIndex}
-          isBroken={(url) => brokenImages.has(url)}
-          onBroken={(url) => brokenImages.add(url)}
           {runningGameId}
+          {isBroken}
+          onBroken={markBroken}
           onSelect={(index) => (selectedIndex = index)}
           onLaunch={playOrReturn}
           onOptions={(index) => {
             selectedIndex = index;
-            openMenu();
+            openMenu(homeGames[index] ?? null);
           }}
         />
       </section>
     {/if}
 
-    <Hints
-      mode={inputMode}
-      hints={focusZone === "friends"
-        ? [
-            { action: "navigate", label: "Navigate" },
-            ...(friendsNeedSetup ? [{ action: "confirm" as const, label: "Connect" }] : []),
-            ...(focusedFriend?.joinUri ? [{ action: "confirm" as const, label: "Join" }] : []),
-            { action: "back", label: "Back to games" },
-          ]
-        : [
-            { action: "navigate", label: "Navigate" },
-            { action: "confirm", label: selectedIsRunning ? "Back to game" : "Play" },
-            { action: "options", label: "Options" },
-            { action: "fullscreen", label: "Full screen" },
-          ]}
-    />
+    {#if view === "library" && launchError}
+      <p class="error" role="alert">{launchError}</p>
+    {/if}
+
+    <Hints mode={inputMode} {hints} />
   </div>
 
   {#if keyDialogOpen}
@@ -501,9 +597,9 @@
     />
   {/if}
 
-  {#if menuOpen && selected}
+  {#if menuGame}
     <GameMenu
-      title={selected.name}
+      title={menuGame.name}
       items={menuItems}
       focusedIndex={menuIndex}
       mode={inputMode}
@@ -588,19 +684,21 @@
 
   .tab {
     padding: 10px 22px;
+    border: 0;
     border-radius: 999px;
+    background: transparent;
     font-size: 15px;
     font-weight: 500;
+    cursor: pointer;
+    transition:
+      background 0.2s ease,
+      color 0.2s ease;
   }
 
   .tab.active {
     background: var(--text);
     color: var(--bg);
     font-weight: 600;
-  }
-
-  .tab[aria-disabled="true"] {
-    color: var(--text-tertiary);
   }
 
   .main-row {
@@ -612,121 +710,27 @@
     gap: 48px;
   }
 
-  .hero {
-    flex: 0 1 640px;
-    min-width: 0;
+  .shelf {
     display: flex;
     flex-direction: column;
-    justify-content: center;
-    gap: 20px;
+    gap: 6px;
   }
 
-  .title-slot {
-    height: 180px;
-    display: flex;
-    align-items: flex-end;
-  }
-
-  .logo {
-    max-width: 520px;
-    max-height: 100%;
-    object-fit: contain;
-    object-position: left bottom;
-    filter: drop-shadow(0 6px 30px rgba(0, 0, 0, 0.45));
-    animation: fade-in 0.4s var(--ease);
-  }
-
-  .logo.light {
-    filter: brightness(0) invert(1) drop-shadow(0 6px 30px rgba(0, 0, 0, 0.45));
-  }
-
-  h1 {
+  h2 {
     margin: 0;
-    font-size: 64px;
-    line-height: 1.05;
-    font-weight: 700;
-    letter-spacing: -0.035em;
-    display: -webkit-box;
-    -webkit-box-orient: vertical;
-    -webkit-line-clamp: 2;
-    line-clamp: 2;
-    overflow: hidden;
-    animation: fade-in 0.4s var(--ease);
-  }
-
-  .meta {
-    display: flex;
-    align-items: center;
-    gap: 12px;
-    font-size: 16px;
-    color: #d1d1d6;
-  }
-
-  .pill {
-    padding: 5px 12px;
-    border-radius: 999px;
-    background: var(--glass);
-    border: 1px solid var(--glass-border);
-    font-size: 13px;
+    font-size: 20px;
     font-weight: 600;
-    color: var(--text);
   }
 
-  .dot {
-    color: var(--line);
-  }
-
-  .live {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    font-weight: 600;
-    color: var(--live-text);
-  }
-
-  .live-dot {
-    width: 8px;
-    height: 8px;
-    border-radius: 999px;
-    background: var(--live);
-    box-shadow: 0 0 0 4px rgba(48, 209, 88, 0.25);
-  }
-
-  .actions {
-    display: flex;
-    gap: 14px;
-    margin-top: 12px;
-  }
-
-  .primary,
   .secondary {
     height: 58px;
     padding: 0 34px;
     border-radius: 999px;
-    font-size: 18px;
-    font-weight: 600;
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    cursor: pointer;
-  }
-
-  .primary {
-    border: 0;
-    background: var(--text);
-    color: var(--bg);
-    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.35);
-  }
-
-  .secondary {
     background: var(--glass);
     border: 1px solid var(--glass-border);
-  }
-
-  .error {
-    margin: 0;
-    font-size: 15px;
-    color: #ff8a80;
+    font-size: 18px;
+    font-weight: 600;
+    cursor: pointer;
   }
 
   .message {
@@ -752,16 +756,10 @@
     color: var(--text-tertiary);
   }
 
-  .shelf {
-    display: flex;
-    flex-direction: column;
-    gap: 6px;
-  }
-
-  h2 {
-    margin: 0;
-    font-size: 20px;
-    font-weight: 600;
+  .error {
+    margin: 0 0 12px;
+    font-size: 15px;
+    color: #ff8a80;
   }
 
   @keyframes fade-in {

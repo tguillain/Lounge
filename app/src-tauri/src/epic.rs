@@ -49,6 +49,7 @@ pub fn parse_item(content: &str) -> Option<Game> {
         name: item.display_name,
         last_played: 0,
         size_on_disk: item.install_size,
+        play_time: None,
         images: GameImages::default(),
         hidden: false,
     })

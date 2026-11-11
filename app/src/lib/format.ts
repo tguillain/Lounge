@@ -42,7 +42,21 @@ export const sizeLabel = (bytes: number): string | null => {
   return `${gigabytes < 10 ? gigabytes.toFixed(1) : Math.round(gigabytes)} GB`;
 };
 
-export const greeting = (date: Date): string => {
+export const totalPlayTimeLabel = (minutes: number | null): string | null => {
+  if (minutes === null) {
+    return null;
+  }
+  if (minutes === 0) {
+    return "Never played";
+  }
+  if (minutes < 60) {
+    return `${minutes} min played`;
+  }
+  const hours = minutes / 60;
+  return `${hours < 10 ? hours.toFixed(1) : Math.round(hours).toLocaleString("en-US")} h played`;
+};
+
+export const greeting =(date: Date): string => {
   const hour = date.getHours();
   if (hour >= 5 && hour < 12) {
     return "Good morning";

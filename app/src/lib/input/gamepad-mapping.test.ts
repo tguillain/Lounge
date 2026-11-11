@@ -26,6 +26,11 @@ describe("buttonAction", () => {
     expect(buttonAction(16)).toBe("menu");
   });
 
+  it("switches tabs with the shoulder buttons", () => {
+    expect(buttonAction(4)).toBe("previousTab");
+    expect(buttonAction(5)).toBe("nextTab");
+  });
+
   it("ignores triggers", () => {
     expect(buttonAction(6)).toBeNull();
   });
