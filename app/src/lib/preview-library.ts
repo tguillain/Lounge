@@ -14,12 +14,12 @@ const previewGame = (name: string, store: Store, hoursAgo: number, sizeGb: numbe
 });
 
 export const previewLibrary = (): Game[] => [
-  previewGame("Horizon de Cendres", "steam", 2, 78),
+  previewGame("Ashen Horizon", "steam", 2, 78),
   previewGame("Neon Drift", "epic", 26, 24),
-  previewGame("Les Abysses", "steam", 72, 41),
-  previewGame("Forteresse Nord", "steam", 170, 12),
-  previewGame("Verdure", "steam", 340, 6),
-  previewGame("Sillage", "steam", 700, 9),
-  previewGame("Orbite", "steam", 2000, 15),
-  previewGame("Atelier 9", "steam", 0, 2),
+  previewGame("The Depths", "steam", 72, 41),
+  previewGame("Northern Keep", "steam", 170, 12),
+  previewGame("Verdant", "steam", 340, 6),
+  previewGame("Wake", "steam", 700, 9),
+  previewGame("Orbit", "steam", 2000, 15),
+  previewGame("Workshop 9", "steam", 0, 2),
 ];

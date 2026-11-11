@@ -50,7 +50,7 @@
     try {
       await setGameHidden(game, hidden);
     } catch (error) {
-      launchError = `Impossible d'enregistrer le choix pour ${game.name} : ${error}`;
+      launchError = `Couldn't save your choice for ${game.name}: ${error}`;
     }
   };
 
@@ -72,7 +72,7 @@
     const items: MenuItem[] = [
       {
         id: "hide",
-        label: game.hidden ? "Réafficher sur l'accueil" : "Masquer de l'accueil",
+        label: game.hidden ? "Show on Home" : "Hide from Home",
         run: () => {
           closeMenu();
           toggleHidden(game);
@@ -82,14 +82,14 @@
     if (hiddenCount > 0 || showHidden) {
       items.push({
         id: "show-hidden",
-        label: showHidden ? "Ne plus montrer les jeux masqués" : `Montrer les jeux masqués (${hiddenCount})`,
+        label: showHidden ? "Stop showing hidden games" : `Show hidden games (${hiddenCount})`,
         run: () => {
           closeMenu();
           toggleShowHidden();
         },
       });
     }
-    items.push({ id: "close", label: "Fermer", run: closeMenu });
+    items.push({ id: "close", label: "Close", run: closeMenu });
     return items;
   });
 
@@ -135,7 +135,7 @@
       await launchGame(game);
     } catch (error) {
       closeLaunchOverlay();
-      launchError = `Impossible de lancer ${game.name} : ${error}`;
+      launchError = `Couldn't launch ${game.name}: ${error}`;
     }
   };
 
@@ -247,37 +247,37 @@
   <div class="layout">
     <header class="top-bar">
       <span class="greeting">{greeting(now)}</span>
-      <nav aria-label="Navigation principale">
-        <span class="tab active" aria-current="page">Accueil</span>
-        <span class="tab" aria-disabled="true" title="Bientôt">Bibliothèque</span>
+      <nav aria-label="Main navigation">
+        <span class="tab active" aria-current="page">Home</span>
+        <span class="tab" aria-disabled="true" title="Coming soon">Library</span>
       </nav>
       <span class="clock">{clockLabel(now)}</span>
     </header>
 
     {#if library.status === "loading"}
       <section class="message" aria-live="polite">
-        <p class="message-title">Chargement de ta bibliothèque…</p>
+        <p class="message-title">Loading your library…</p>
       </section>
     {:else if library.status === "error"}
       <section class="message" role="alert">
-        <p class="message-title">Impossible de lire ta bibliothèque</p>
+        <p class="message-title">Couldn't read your library</p>
         <p class="message-body">{library.message}</p>
-        <button type="button" class="secondary" onclick={refreshLibrary}>Réessayer</button>
+        <button type="button" class="secondary" onclick={refreshLibrary}>Try again</button>
       </section>
     {:else if !selected && allGames.length > 0}
       <section class="message">
-        <p class="message-title">Tous tes jeux sont masqués</p>
-        <p class="message-body">Affiche-les pour en réafficher certains sur l'accueil.</p>
-        <button type="button" class="secondary" onclick={toggleShowHidden}>Montrer les jeux masqués</button>
+        <p class="message-title">All your games are hidden</p>
+        <p class="message-body">Show them to bring some back to Home.</p>
+        <button type="button" class="secondary" onclick={toggleShowHidden}>Show hidden games</button>
       </section>
     {:else if !selected}
       <section class="message">
-        <p class="message-title">Aucun jeu installé trouvé</p>
-        <p class="message-body">Installe un jeu sur Steam ou Epic Games, puis actualise.</p>
-        <button type="button" class="secondary" onclick={refreshLibrary}>Actualiser</button>
+        <p class="message-title">No installed games found</p>
+        <p class="message-body">Install a game on Steam or Epic Games, then refresh.</p>
+        <button type="button" class="secondary" onclick={refreshLibrary}>Refresh</button>
       </section>
     {:else}
-      <section class="hero" aria-label="Jeu sélectionné">
+      <section class="hero" aria-label="Selected game">
         <div class="title-slot">
           {#key selected.id}
             {#if logoUrl}
@@ -290,9 +290,9 @@
         <div class="meta">
           <span class="pill">{storeLabel(selected.store)}</span>
           {#if lastPlayed}
-            <span>Dernière session {lastPlayed}</span>
+            <span>Last played {lastPlayed}</span>
           {:else}
-            <span>Jamais lancé ici</span>
+            <span>Never played</span>
           {/if}
           {#if size}
             <span class="dot" aria-hidden="true">·</span>
@@ -302,7 +302,7 @@
         <div class="actions">
           <button type="button" class="primary" onclick={() => selected && play(selected)}>
             <svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24"><path d="M6 3.8v16.4a1 1 0 0 0 1.5.9l13.2-8.2a1 1 0 0 0 0-1.8L7.5 2.9A1 1 0 0 0 6 3.8z" fill="currentColor" /></svg>
-            Jouer
+            Play
           </button>
         </div>
         {#if launchError}
@@ -310,8 +310,8 @@
         {/if}
       </section>
 
-      <section class="shelf" aria-label="Récemment joués">
-        <h2>Récemment joués</h2>
+      <section class="shelf" aria-label="Recently played">
+        <h2>Recently played</h2>
         <Shelf
           {games}
           {selectedIndex}
@@ -330,10 +330,10 @@
     <Hints
       mode={inputMode}
       hints={[
-        { action: "navigate", label: "Naviguer" },
-        { action: "confirm", label: "Jouer" },
+        { action: "navigate", label: "Navigate" },
+        { action: "confirm", label: "Play" },
         { action: "options", label: "Options" },
-        { action: "fullscreen", label: "Plein écran" },
+        { action: "fullscreen", label: "Full screen" },
       ]}
     />
   </div>

@@ -31,7 +31,7 @@
   class="tile"
   class:selected
   class:hidden-game={game.hidden}
-  aria-label={game.hidden ? `${game.name} (masqué)` : game.name}
+  aria-label={game.hidden ? `${game.name} (hidden)` : game.name}
   aria-pressed={selected}
   style:background={showHeader ? undefined : placeholderArt(game.name)}
   onclick={handleClick}
@@ -43,7 +43,7 @@
     <span class="name">{game.name}</span>
   {/if}
   {#if game.hidden}
-    <span class="badge">Masqué</span>
+    <span class="badge">Hidden</span>
   {/if}
 </button>
 

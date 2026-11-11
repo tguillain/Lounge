@@ -30,10 +30,10 @@
       <h1>{game.name}</h1>
     {/if}
     <div class="progress" aria-hidden="true"><span></span></div>
-    <p>Lancement via {storeLabel(game.store)}…</p>
+    <p>Launching via {storeLabel(game.store)}…</p>
   </div>
 
-  <div class="footer"><Hints hints={[{ action: "back", label: "Fermer" }]} {mode} /></div>
+  <div class="footer"><Hints hints={[{ action: "back", label: "Close" }]} {mode} /></div>
 </div>
 
 <style>

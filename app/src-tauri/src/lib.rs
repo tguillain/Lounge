@@ -56,17 +56,17 @@ fn set_game_hidden(app: tauri::AppHandle, game_id: String, hidden: bool) -> Resu
 #[tauri::command]
 fn launch_game(app: tauri::AppHandle, uri: String) -> Result<(), String> {
     if !ALLOWED_LAUNCH_PREFIXES.iter().any(|prefix| uri.starts_with(prefix)) {
-        return Err(format!("Lien de lancement refusé : {uri}"));
+        return Err(format!("Refused launch link: {uri}"));
     }
     app.opener().open_url(uri, None::<&str>).map_err(|error| error.to_string())
 }
 
 fn build_tray(app: &tauri::App) -> tauri::Result<()> {
-    let open = MenuItem::with_id(app, "open", "Ouvrir le launcher", true, None::<&str>)?;
-    let quit = MenuItem::with_id(app, "quit", "Quitter", true, None::<&str>)?;
+    let open = MenuItem::with_id(app, "open", "Open Lounge", true, None::<&str>)?;
+    let quit = MenuItem::with_id(app, "quit", "Quit", true, None::<&str>)?;
     let menu = Menu::with_items(app, &[&open, &quit])?;
     let mut tray = TrayIconBuilder::new()
-        .tooltip("Game Launcher")
+        .tooltip("Lounge")
         .menu(&menu)
         .show_menu_on_left_click(false)
         .on_menu_event(|app, event| match event.id.as_ref() {

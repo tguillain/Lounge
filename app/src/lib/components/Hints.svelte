@@ -33,9 +33,9 @@
     },
     keyboard: {
       navigate: { kind: "key", text: "← →" },
-      confirm: { kind: "key", text: "Entrée" },
-      back: { kind: "key", text: "Échap" },
-      options: { kind: "key", text: "Clic droit" },
+      confirm: { kind: "key", text: "Enter" },
+      back: { kind: "key", text: "Esc" },
+      options: { kind: "key", text: "Right-click" },
       menu: { kind: "key", text: "Tab" },
       fullscreen: { kind: "key", text: "F11" },
     },
@@ -51,7 +51,7 @@
   );
 </script>
 
-<footer class="hints" aria-label="Commandes">
+<footer class="hints" aria-label="Controls">
   {#each visible as hint (hint.action)}
     <span class="hint">
       {#if hint.glyph.kind === "shape"}

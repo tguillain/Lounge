@@ -41,7 +41,7 @@ mod tests {
     use super::*;
 
     fn temp_settings_path(name: &str) -> std::path::PathBuf {
-        let dir = std::env::temp_dir().join(format!("game-launcher-test-{name}-{}", std::process::id()));
+        let dir = std::env::temp_dir().join(format!("lounge-test-{name}-{}", std::process::id()));
         let _ = fs::remove_dir_all(&dir);
         dir.join("settings.json")
     }

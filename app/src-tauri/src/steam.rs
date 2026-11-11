@@ -223,9 +223,9 @@ mod tests {
     }
 
     #[test]
-    #[ignore = "lit la vraie installation Steam de ce PC"]
+    #[ignore = "reads the real Steam install on this PC"]
     fn prints_local_library() {
-        let logo_cache = std::env::temp_dir().join("game-launcher-logos");
+        let logo_cache = std::env::temp_dir().join("lounge-logos");
         fs::create_dir_all(&logo_cache).unwrap();
         for game in scan(Some(&logo_cache)) {
             println!("{} | {} | dark={} | logo={:?}", game.id, game.name, game.images.logo_is_dark, game.images.logo);

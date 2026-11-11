@@ -128,7 +128,7 @@
   class="viewport"
   class:dragging
   role="group"
-  aria-label="Liste des jeux"
+  aria-label="Game list"
   bind:clientWidth={viewportWidth}
   onpointerdown={handlePointerDown}
   onpointermove={handlePointerMove}

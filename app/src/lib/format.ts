@@ -12,24 +12,26 @@ const STORE_LABELS: Record<Store, string> = {
 
 export const storeLabel = (store: Store): string => STORE_LABELS[store];
 
+const plural = (count: number, unit: string): string => `${count} ${unit}${count === 1 ? "" : "s"} ago`;
+
 export const lastPlayedLabel = (lastPlayed: number, nowSeconds: number): string | null => {
   if (lastPlayed === 0) {
     return null;
   }
   const elapsed = Math.max(0, nowSeconds - lastPlayed);
   if (elapsed < HOUR) {
-    return `il y a ${Math.max(1, Math.round(elapsed / MINUTE))} min`;
+    return `${Math.max(1, Math.round(elapsed / MINUTE))} min ago`;
   }
   if (elapsed < DAY) {
-    return `il y a ${Math.round(elapsed / HOUR)} h`;
+    return plural(Math.round(elapsed / HOUR), "hour");
   }
   if (elapsed < 2 * DAY) {
-    return "hier";
+    return "yesterday";
   }
   if (elapsed < WEEK) {
-    return `il y a ${Math.floor(elapsed / DAY)} jours`;
+    return plural(Math.floor(elapsed / DAY), "day");
   }
-  return `le ${new Date(lastPlayed * 1000).toLocaleDateString("fr-FR", { day: "numeric", month: "long" })}`;
+  return `on ${new Date(lastPlayed * 1000).toLocaleDateString("en-US", { month: "long", day: "numeric" })}`;
 };
 
 export const sizeLabel = (bytes: number): string | null => {
@@ -37,13 +39,21 @@ export const sizeLabel = (bytes: number): string | null => {
     return null;
   }
   const gigabytes = bytes / 1024 ** 3;
-  return `${gigabytes < 10 ? gigabytes.toFixed(1).replace(".", ",") : Math.round(gigabytes)} Go`;
+  return `${gigabytes < 10 ? gigabytes.toFixed(1) : Math.round(gigabytes)} GB`;
 };
 
-export const greeting = (date: Date): string => (date.getHours() >= 18 || date.getHours() < 5 ? "Bonsoir" : "Bonjour");
+export const greeting = (date: Date): string => {
+  const hour = date.getHours();
+  if (hour >= 5 && hour < 12) {
+    return "Good morning";
+  }
+  if (hour >= 12 && hour < 18) {
+    return "Good afternoon";
+  }
+  return "Good evening";
+};
 
-export const clockLabel = (date: Date): string =>
-  date.toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" });
+export const clockLabel = (date: Date): string => date.toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit" });
 
 const hueOf = (text: string): number => {
   let hash = 0;

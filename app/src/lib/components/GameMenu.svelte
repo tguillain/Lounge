@@ -36,8 +36,8 @@
     <Hints
       {mode}
       hints={[
-        { action: "confirm", label: "Valider" },
-        { action: "back", label: "Fermer" },
+        { action: "confirm", label: "Select" },
+        { action: "back", label: "Close" },
       ]}
     />
   </div>
