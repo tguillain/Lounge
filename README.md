@@ -13,6 +13,9 @@ A minimal, controller-first launcher that turns your Windows library into a cons
 ![Rust](https://img.shields.io/badge/Rust-core-000000?style=flat-square&logo=rust)
 ![Svelte](https://img.shields.io/badge/Svelte-5-FF3E00?style=flat-square&logo=svelte&logoColor=white)
 ![Installer](https://img.shields.io/badge/installer-~2.5%20MB-30d158?style=flat-square)
+![License](https://img.shields.io/badge/license-MIT-8e8e93?style=flat-square)
+
+**[⬇ Download for Windows](https://github.com/tguillain/lounge/releases/latest)**
 
 </div>
 
@@ -90,7 +93,9 @@ Lounge reads what your launchers already keep on disk: Steam library folders, ap
 
 ## Install
 
-Lounge doesn't ship prebuilt releases yet. Build the installer yourself (see below), then run `Lounge_x.y.z_x64-setup.exe`. It installs for your user account only, no admin rights needed.
+1. Download `Lounge_x.y.z_x64-setup.exe` from the [latest release](https://github.com/tguillain/lounge/releases/latest).
+2. Run it. It installs for your user account only, no admin rights needed.
+3. Open Lounge from the Start menu, then turn on **Start with Windows** in Settings if you want the full console feel.
 
 > The installer isn't code-signed, so Windows SmartScreen may warn about an unknown publisher. Choose **More info → Run anyway**.
 
@@ -151,7 +156,11 @@ app/
 - [ ] Rockstar Games Launcher support
 - [ ] Single instance: reopening Lounge brings back the running one
 - [ ] Subtle navigation sounds
-- [ ] Prebuilt releases
+## License
+
+Lounge is released under the [MIT License](LICENSE).
+
+Game names, logos and artwork shown in Lounge and in these screenshots belong to their respective owners. Lounge only displays what your own launchers have already downloaded.
 
 ---
 
