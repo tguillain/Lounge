@@ -4,7 +4,7 @@ import { getCurrentWebviewWindow } from "@tauri-apps/api/webviewWindow";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import type { PadAction } from "./input/gamepad-mapping";
 import { previewLibrary } from "./preview-library";
-import type { Friend, FriendsResult, Game, Preferences, Session, Toggle } from "./types";
+import type { AvailableUpdate, Friend, FriendsResult, Game, Preferences, Session, Toggle } from "./types";
 
 const runsInTauri = typeof window !== "undefined" && "__TAURI_INTERNALS__" in window;
 
@@ -145,7 +145,8 @@ const previewPreferences: Preferences = {
   startFullscreen: false,
   vibration: true,
   showFriends: true,
-  version: "0.1.2",
+  version: "0.1.3",
+  canUpdate: true,
 };
 
 export const getPreferences = async (): Promise<Preferences> => {
@@ -175,6 +176,26 @@ export const openReleasesPage = async (): Promise<void> => {
   if (runsInTauri) {
     await invoke("open_releases_page");
   }
+};
+
+export const checkForUpdate = async (): Promise<AvailableUpdate | null> => {
+  if (!runsInTauri) {
+    return { version: "0.1.3" };
+  }
+  return invoke<AvailableUpdate | null>("check_for_update");
+};
+
+export const installUpdate = async (): Promise<void> => {
+  if (runsInTauri) {
+    await invoke("install_update");
+  }
+};
+
+export const onUpdateProgress = async (handle: (percent: number | null) => void): Promise<() => void> => {
+  if (!runsInTauri) {
+    return () => {};
+  }
+  return listen<{ percent: number | null }>("update-progress", (event) => handle(event.payload.percent));
 };
 
 export const pulseDualSense = (): void => {

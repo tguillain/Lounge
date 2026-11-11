@@ -9,6 +9,7 @@ mod quick_menu;
 mod session;
 mod settings;
 mod steam;
+mod update;
 mod vdf;
 mod watcher;
 mod window;
@@ -42,6 +43,7 @@ struct Preferences {
     vibration: bool,
     show_friends: bool,
     version: String,
+    can_update: bool,
 }
 
 const ALLOWED_LAUNCH_PREFIXES: [&str; 3] = ["steam://rungameid/", "steam://joinlobby/", "com.epicgames.launcher://apps/"];
@@ -77,6 +79,16 @@ fn open_releases_page(app: tauri::AppHandle) -> Result<(), String> {
 }
 
 #[tauri::command]
+async fn check_for_update(app: tauri::AppHandle) -> Result<Option<update::AvailableUpdate>, String> {
+    update::check(&app).await
+}
+
+#[tauri::command]
+async fn install_update(app: tauri::AppHandle) -> Result<(), String> {
+    update::install(&app).await
+}
+
+#[tauri::command]
 fn pulse_controller(pad: tauri::State<'_, pad::PadControl>) {
     pad.pulse();
 }
@@ -97,6 +109,7 @@ fn get_preferences(app: tauri::AppHandle) -> Result<Preferences, String> {
         vibration: saved.vibration,
         show_friends: saved.show_friends,
         version: app.package_info().version.to_string(),
+        can_update: update::AVAILABLE,
     })
 }
 
@@ -222,6 +235,8 @@ pub fn run() {
     }
     let app = builder
         .plugin(tauri_plugin_opener::init())
+        .plugin(tauri_plugin_updater::Builder::new().build())
+        .manage(update::UpdateState::default())
         .manage(WindowState::default())
         .manage(SessionState::default())
         .setup(|app| {
@@ -245,6 +260,8 @@ pub fn run() {
             set_start_with_windows,
             set_toggle,
             open_releases_page,
+            check_for_update,
+            install_update,
             pulse_controller,
             launch_game,
             get_session,

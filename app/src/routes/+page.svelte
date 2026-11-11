@@ -12,15 +12,18 @@
   import SteamKeyDialog from "$lib/components/SteamKeyDialog.svelte";
   import {
     backToGame,
+    checkForUpdate,
     forgetSteamApiKey,
     getPreferences,
     getSession,
     imageUrl,
+    installUpdate,
     joinFriend,
     launchGame,
     loadFriends,
     loadLibrary,
     onGameSession,
+    onUpdateProgress,
     openReleasesPage,
     openSteamApiKeyPage,
     pulseDualSense,
@@ -44,7 +47,7 @@
     type LibrarySort,
   } from "$lib/library";
   import { settingsRows, type SettingsRow, type SteamKeyState } from "$lib/settings";
-  import type { Friend, FriendsResult, Game, LibraryState, Preferences, Toggle } from "$lib/types";
+  import type { Friend, FriendsResult, Game, LibraryState, Preferences, Toggle, UpdateStatus } from "$lib/types";
 
   type View = "home" | "library" | "settings";
 
@@ -67,6 +70,7 @@
   const CLOCK_REFRESH_MS = 15_000;
   const FRIENDS_REFRESH_MS = 60_000;
   const VISIBLE_FRIENDS = 5;
+  const UPDATE_CHECK_MS = 6 * 60 * 60 * 1000;
 
   let library = $state<LibraryState>({ status: "loading" });
   let view = $state<View>("home");
@@ -98,6 +102,7 @@
   let settingsIndex = $state(0);
   let settingsNote = $state<string | null>(null);
   let viewBeforeSettings: "home" | "library" = "home";
+  let update = $state<UpdateStatus>({ state: "idle" });
   const showFriends = $derived(preferences?.showFriends ?? true);
 
   const allGames = $derived(library.status === "ready" ? library.games : []);
@@ -240,6 +245,31 @@
     }
   };
 
+  const lookForUpdate = async () => {
+    if (!preferences?.canUpdate || update.state === "checking" || update.state === "installing") {
+      return;
+    }
+    update = { state: "checking" };
+    try {
+      const found = await checkForUpdate();
+      update = found ? { state: "available", version: found.version } : { state: "up-to-date" };
+    } catch {
+      update = { state: "failed", message: "Couldn't check for updates. Check your connection and try again." };
+    }
+  };
+
+  const installAvailableUpdate = async () => {
+    if (update.state !== "available") {
+      return;
+    }
+    update = { state: "installing", version: update.version, percent: null };
+    try {
+      await installUpdate();
+    } catch (error) {
+      update = { state: "failed", message: `Couldn't install the update: ${error}` };
+    }
+  };
+
   const openSettings = () => {
     if (view !== "settings") {
       viewBeforeSettings = view;
@@ -247,7 +277,11 @@
     settingsIndex = 0;
     settingsNote = null;
     view = "settings";
-    loadPreferences();
+    loadPreferences().then(() => {
+      if (update.state === "up-to-date" || update.state === "failed") {
+        lookForUpdate();
+      }
+    });
   };
 
   const closeSettings = () => {
@@ -277,7 +311,7 @@
     friendsResult.status === "loading" ? "unknown" : friendsResult.status === "not-configured" ? "missing" : "connected",
   );
 
-  const rows = $derived<SettingsRow[]>(preferences ? settingsRows(preferences, steamKeyState) : []);
+  const rows = $derived<SettingsRow[]>(preferences ? settingsRows(preferences, steamKeyState, update) : []);
 
   const activateSetting = (row: SettingsRow) => {
     if (row.kind === "toggle") {
@@ -289,6 +323,15 @@
     } else if (row.action === "remove-key") {
       forgetKey();
       settingsIndex = Math.max(0, settingsIndex - 1);
+    } else if (row.action === "update") {
+      if (row.inert) {
+        return;
+      }
+      if (update.state === "available") {
+        installAvailableUpdate();
+      } else {
+        lookForUpdate();
+      }
     } else {
       openReleasesPage().catch((error) => (settingsNote = `Couldn't open the releases page: ${error}`));
     }
@@ -495,7 +538,9 @@
       const row = rows[settingsIndex];
       return [
         { action: "navigate", label: "Navigate" },
-        ...(row ? [{ action: "confirm" as const, label: row.kind === "toggle" ? "Turn on or off" : "Select" }] : []),
+        ...(row && !(row.kind === "action" && row.inert)
+          ? [{ action: "confirm" as const, label: row.kind === "toggle" ? "Turn on or off" : row.action === "update" ? (row.value ?? "Select") : "Select" }]
+          : []),
         { action: "back", label: "Back" },
       ];
     }
@@ -532,7 +577,7 @@
   onMount(() => {
     refreshLibrary();
     refreshFriends();
-    loadPreferences();
+    loadPreferences().then(lookForUpdate);
 
     const stopGamepads = watchGamepads((action, family) => {
       inputMode = family;
@@ -550,6 +595,18 @@
         refreshFriends();
       }
     }, FRIENDS_REFRESH_MS);
+
+    const updateTimer = setInterval(() => {
+      if (update.state !== "available") {
+        lookForUpdate();
+      }
+    }, UPDATE_CHECK_MS);
+
+    const stopUpdateProgress = onUpdateProgress((percent) => {
+      if (update.state === "installing") {
+        update = { ...update, percent };
+      }
+    });
 
     getSession()
       .then((session) => (runningGameId = session ? `steam:${session.appId}` : null))
@@ -569,6 +626,8 @@
     return () => {
       clearInterval(clock);
       clearInterval(friendsTimer);
+      clearInterval(updateTimer);
+      stopUpdateProgress.then((stop) => stop());
       clearTimeout(launchTimer);
       stopGamepads();
       stopListening.then((stop) => stop());
@@ -614,7 +673,8 @@
           type="button"
           class="settings-button"
           class:active={view === "settings"}
-          aria-label="Settings"
+          class:has-update={update.state === "available"}
+          aria-label={update.state === "available" ? "Settings, update available" : "Settings"}
           aria-current={view === "settings" ? "page" : undefined}
           onclick={() => (view === "settings" ? closeSettings() : openSettings())}
         >
@@ -841,9 +901,22 @@
     place-items: center;
     color: var(--text-secondary);
     cursor: pointer;
+    position: relative;
     transition:
       background 0.15s ease,
       color 0.15s ease;
+  }
+
+  .settings-button.has-update::after {
+    content: "";
+    position: absolute;
+    top: 7px;
+    right: 7px;
+    width: 9px;
+    height: 9px;
+    border-radius: 999px;
+    background: var(--live);
+    box-shadow: 0 0 0 2px var(--bg);
   }
 
   .settings-button:hover {

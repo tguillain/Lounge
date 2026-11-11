@@ -97,6 +97,8 @@ Lounge reads what your launchers already keep on disk: Steam library folders, ap
 2. Run it. It installs for your user account only, no admin rights needed.
 3. Open Lounge from the Start menu, then turn on **Start with Windows** in Settings if you want the full console feel.
 
+From 0.1.3 on, Lounge keeps itself up to date: a green dot on the Settings icon means a new version is ready, and **Settings → About** installs it in a few seconds. Updates are signed, and Lounge refuses any installer that isn't.
+
 > The installer isn't code-signed, so Windows SmartScreen may warn about an unknown publisher. Choose **More info → Run anyway**.
 
 ## Build from source
@@ -119,6 +121,8 @@ Build the release app and its installer, in `app/src-tauri/target/release/bundle
 ```bash
 npm run tauri build
 ```
+
+Maintainers publish with `npm run release` instead. It builds the same installer, signs it with the update key (kept outside the repo, in `~/.tauri/lounge.key`), and writes the `latest.json` that installed copies read to find updates. Attach both files to the GitHub release.
 
 Run the tests:
 

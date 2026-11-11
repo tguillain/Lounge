@@ -1,4 +1,4 @@
-import type { Preferences, Toggle } from "./types";
+import type { Preferences, Toggle, UpdateStatus } from "./types";
 
 export type SteamKeyState = "connected" | "missing" | "unknown";
 
@@ -8,7 +8,14 @@ type RowBase = { id: string; section: SettingsSection; label: string; descriptio
 
 export type SettingsRow =
   | (RowBase & { kind: "toggle"; toggle: Toggle | "startWithWindows"; on: boolean; available: boolean })
-  | (RowBase & { kind: "action"; action: "steam-key" | "remove-key" | "releases"; value?: string; danger?: boolean });
+  | (RowBase & {
+      kind: "action";
+      action: "steam-key" | "remove-key" | "update" | "releases";
+      value?: string;
+      danger?: boolean;
+      highlight?: boolean;
+      inert?: boolean;
+    });
 
 const steamKeyValue: Record<SteamKeyState, string> = {
   connected: "Connected",
@@ -16,7 +23,39 @@ const steamKeyValue: Record<SteamKeyState, string> = {
   unknown: "…",
 };
 
-export const settingsRows = (preferences: Preferences, steamKey: SteamKeyState): SettingsRow[] => [
+const updateRow = (preferences: Preferences, update: UpdateStatus): SettingsRow => {
+  const row = { id: "update", section: "About", kind: "action", action: "update", label: `Lounge ${preferences.version}` } as const;
+  if (!preferences.canUpdate) {
+    return { ...row, description: "Updates are checked in the installed app.", inert: true };
+  }
+  switch (update.state) {
+    case "idle":
+    case "checking":
+      return { ...row, description: "Checking for updates…", inert: true };
+    case "up-to-date":
+      return { ...row, description: "You're up to date.", value: "Check again" };
+    case "available":
+      return {
+        ...row,
+        label: `Lounge ${update.version} is available`,
+        description: `You have ${preferences.version}. Lounge restarts to finish updating.`,
+        value: "Install",
+        highlight: true,
+      };
+    case "installing":
+      return {
+        ...row,
+        label: `Updating to Lounge ${update.version}`,
+        description: "Lounge restarts on its own when it's done.",
+        value: update.percent === null ? "Downloading…" : `${update.percent}%`,
+        inert: true,
+      };
+    case "failed":
+      return { ...row, description: update.message, value: "Try again" };
+  }
+};
+
+export const settingsRows = (preferences: Preferences, steamKey: SteamKeyState, update: UpdateStatus): SettingsRow[] => [
   {
     id: "start-with-windows",
     section: "General",
@@ -81,13 +120,14 @@ export const settingsRows = (preferences: Preferences, steamKey: SteamKeyState):
         } satisfies SettingsRow,
       ]
     : []),
+  updateRow(preferences, update),
   {
     id: "releases",
     section: "About",
     kind: "action",
     action: "releases",
-    label: `Lounge ${preferences.version}`,
-    description: "See what's new and download updates on GitHub.",
+    label: "What's new",
+    description: "Release notes for every version, on GitHub.",
     value: "Open",
   },
 ];

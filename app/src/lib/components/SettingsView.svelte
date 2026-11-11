@@ -32,6 +32,8 @@
             class:focused={index === focusedIndex}
             class:danger={row.kind === "action" && row.danger}
             class:unavailable={row.kind === "toggle" && !row.available}
+            class:inert={row.kind === "action" && row.inert}
+            class:highlight={row.kind === "action" && row.highlight}
             role={row.kind === "toggle" ? "switch" : undefined}
             aria-checked={row.kind === "toggle" ? row.on : undefined}
             bind:this={buttons[index]}
@@ -49,7 +51,7 @@
                 {row.value ?? ""}
                 {#if row.action === "releases"}
                   <svg aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M7 17L17 7M8 7h9v9" /></svg>
-                {:else if !row.danger}
+                {:else if !row.danger && !row.inert}
                   <svg aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6" /></svg>
                 {/if}
               </span>
@@ -177,6 +179,19 @@
 
   .row.unavailable .label {
     opacity: 0.5;
+  }
+
+  .row.inert {
+    cursor: default;
+  }
+
+  .row.highlight .value {
+    color: var(--live);
+    font-weight: 600;
+  }
+
+  .row.highlight.focused .value {
+    color: #1f8a3c;
   }
 
   .value {
