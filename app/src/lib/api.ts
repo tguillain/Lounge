@@ -1,8 +1,10 @@
 import { convertFileSrc, invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
+import { getCurrentWebviewWindow } from "@tauri-apps/api/webviewWindow";
 import { getCurrentWindow } from "@tauri-apps/api/window";
+import type { PadAction } from "./input/gamepad-mapping";
 import { previewLibrary } from "./preview-library";
-import type { Game } from "./types";
+import type { Game, Session } from "./types";
 
 const runsInTauri = typeof window !== "undefined" && "__TAURI_INTERNALS__" in window;
 
@@ -50,6 +52,45 @@ export const onGameSession = async (
     stopStarted();
     stopEnded();
   };
+};
+
+export const getSession = async (): Promise<Session | null> => {
+  if (!runsInTauri) {
+    const [game] = previewLibrary();
+    return { appId: 0, startedAt: Date.now() - 72 * 60 * 1000, game };
+  }
+  return invoke<Session | null>("get_session");
+};
+
+export const backToGame = async (): Promise<void> => {
+  if (runsInTauri) {
+    await invoke("back_to_game");
+  }
+};
+
+export const resumeGame = async (): Promise<void> => {
+  if (runsInTauri) {
+    await invoke("quick_menu_resume");
+  }
+};
+
+export const openLounge = async (): Promise<void> => {
+  if (runsInTauri) {
+    await invoke("quick_menu_open_lounge");
+  }
+};
+
+export const quitGame = async (): Promise<void> => {
+  if (runsInTauri) {
+    await invoke("quick_menu_quit_game");
+  }
+};
+
+export const onControllerAction = async (handle: (action: PadAction) => void): Promise<() => void> => {
+  if (!runsInTauri) {
+    return () => {};
+  }
+  return getCurrentWebviewWindow().listen<PadAction>("pad-action", (event) => handle(event.payload));
 };
 
 export const toggleFullscreen = async (): Promise<void> => {

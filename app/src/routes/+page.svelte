@@ -5,7 +5,16 @@
   import Hints from "$lib/components/Hints.svelte";
   import LaunchOverlay from "$lib/components/LaunchOverlay.svelte";
   import Shelf from "$lib/components/Shelf.svelte";
-  import { imageUrl, launchGame, loadLibrary, onGameSession, setGameHidden, toggleFullscreen } from "$lib/api";
+  import {
+    backToGame,
+    getSession,
+    imageUrl,
+    launchGame,
+    loadLibrary,
+    onGameSession,
+    setGameHidden,
+    toggleFullscreen,
+  } from "$lib/api";
   import { clockLabel, greeting, lastPlayedLabel, placeholderArt, sizeLabel, storeLabel } from "$lib/format";
   import { pulse, watchGamepads } from "$lib/input/gamepad";
   import type { InputMode, PadAction } from "$lib/input/gamepad-mapping";
@@ -33,6 +42,7 @@
   let showHidden = $state(false);
   let menuOpen = $state(false);
   let menuIndex = $state(0);
+  let runningGameId = $state<string | null>(null);
   const brokenImages = new SvelteSet<string>();
   let launchTimer: ReturnType<typeof setTimeout> | undefined;
 
@@ -40,6 +50,7 @@
   const hiddenCount = $derived(allGames.filter((game) => game.hidden).length);
   const games = $derived(showHidden ? allGames : allGames.filter((game) => !game.hidden));
   const selected = $derived<Game | null>(games[selectedIndex] ?? null);
+  const selectedIsRunning = $derived(selected !== null && selected.id === runningGameId);
 
   const toggleHidden = async (game: Game) => {
     const hidden = !game.hidden;
@@ -139,6 +150,17 @@
     }
   };
 
+  const returnToGame = async () => {
+    launchError = null;
+    try {
+      await backToGame();
+    } catch (error) {
+      launchError = `Couldn't switch back to the game: ${error}`;
+    }
+  };
+
+  const playOrReturn = (game: Game) => (game.id === runningGameId ? returnToGame() : play(game));
+
   const moveSelection = (step: number): boolean => {
     const next = Math.min(games.length - 1, Math.max(0, selectedIndex + step));
     if (games.length === 0 || next === selectedIndex) {
@@ -178,7 +200,7 @@
         pulse();
       }
     } else if (action === "confirm" && selected) {
-      play(selected);
+      playOrReturn(selected);
     } else if (action === "options") {
       openMenu();
     }
@@ -212,9 +234,19 @@
       }
     }, CLOCK_REFRESH_MS);
 
+    getSession()
+      .then((session) => (runningGameId = session ? `steam:${session.appId}` : null))
+      .catch(() => (runningGameId = null));
+
     const stopListening = onGameSession(
-      () => closeLaunchOverlay(),
-      () => refreshLibrary(),
+      (gameId) => {
+        runningGameId = gameId;
+        closeLaunchOverlay();
+      },
+      () => {
+        runningGameId = null;
+        refreshLibrary();
+      },
     );
 
     return () => {
@@ -289,7 +321,9 @@
         </div>
         <div class="meta">
           <span class="pill">{storeLabel(selected.store)}</span>
-          {#if lastPlayed}
+          {#if selectedIsRunning}
+            <span class="live"><span class="live-dot"></span>Now playing</span>
+          {:else if lastPlayed}
             <span>Last played {lastPlayed}</span>
           {:else}
             <span>Never played</span>
@@ -300,9 +334,14 @@
           {/if}
         </div>
         <div class="actions">
-          <button type="button" class="primary" onclick={() => selected && play(selected)}>
-            <svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24"><path d="M6 3.8v16.4a1 1 0 0 0 1.5.9l13.2-8.2a1 1 0 0 0 0-1.8L7.5 2.9A1 1 0 0 0 6 3.8z" fill="currentColor" /></svg>
-            Play
+          <button type="button" class="primary" onclick={() => selected && playOrReturn(selected)}>
+            {#if selectedIsRunning}
+              <svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6" /></svg>
+              Back to game
+            {:else}
+              <svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24"><path d="M6 3.8v16.4a1 1 0 0 0 1.5.9l13.2-8.2a1 1 0 0 0 0-1.8L7.5 2.9A1 1 0 0 0 6 3.8z" fill="currentColor" /></svg>
+              Play
+            {/if}
           </button>
         </div>
         {#if launchError}
@@ -317,8 +356,9 @@
           {selectedIndex}
           isBroken={(url) => brokenImages.has(url)}
           onBroken={(url) => brokenImages.add(url)}
+          {runningGameId}
           onSelect={(index) => (selectedIndex = index)}
-          onLaunch={play}
+          onLaunch={playOrReturn}
           onOptions={(index) => {
             selectedIndex = index;
             openMenu();
@@ -331,7 +371,7 @@
       mode={inputMode}
       hints={[
         { action: "navigate", label: "Navigate" },
-        { action: "confirm", label: "Play" },
+        { action: "confirm", label: selectedIsRunning ? "Back to game" : "Play" },
         { action: "options", label: "Options" },
         { action: "fullscreen", label: "Full screen" },
       ]}
@@ -502,6 +542,22 @@
 
   .dot {
     color: var(--line);
+  }
+
+  .live {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-weight: 600;
+    color: var(--live-text);
+  }
+
+  .live-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 999px;
+    background: var(--live);
+    box-shadow: 0 0 0 4px rgba(48, 209, 88, 0.25);
   }
 
   .actions {

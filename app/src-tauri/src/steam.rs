@@ -13,6 +13,7 @@ const CDN_BASE: &str = "https://cdn.cloudflare.steamstatic.com/steam/apps";
 pub struct Manifest {
     pub app_id: String,
     pub name: String,
+    pub install_dir: String,
     pub installed: bool,
     pub last_played: u64,
     pub size_on_disk: u64,
@@ -51,6 +52,21 @@ pub fn scan(logo_cache: Option<&Path>) -> Vec<Game> {
         .collect()
 }
 
+pub fn find_game(app_id: u32, logo_cache: Option<&Path>) -> Option<Game> {
+    let id = format!("steam:{app_id}");
+    scan(logo_cache).into_iter().find(|game| game.id == id)
+}
+
+pub fn install_path(app_id: u32) -> Option<PathBuf> {
+    let root = steam_root()?;
+    library_folders(&root).into_iter().find_map(|library| {
+        let steamapps = library.join("steamapps");
+        let manifest = fs::read_to_string(steamapps.join(format!("appmanifest_{app_id}.acf"))).ok()?;
+        let manifest = parse_manifest(&manifest)?;
+        (!manifest.install_dir.is_empty()).then(|| steamapps.join("common").join(manifest.install_dir))
+    })
+}
+
 pub fn parse_manifest(content: &str) -> Option<Manifest> {
     let doc = vdf::parse(content)?;
     let state = doc.get("AppState")?;
@@ -58,6 +74,7 @@ pub fn parse_manifest(content: &str) -> Option<Manifest> {
     Some(Manifest {
         app_id: state.text("appid")?.to_string(),
         name: state.text("name")?.to_string(),
+        install_dir: state.text("installdir").unwrap_or_default().to_string(),
         installed: flags & FULLY_INSTALLED_FLAG != 0,
         last_played: state.text("LastPlayed").and_then(|v| v.parse().ok()).unwrap_or(0),
         size_on_disk: state.text("SizeOnDisk").and_then(|v| v.parse().ok()).unwrap_or(0),
@@ -198,6 +215,7 @@ mod tests {
             {
                 "appid"       "252950"
                 "name"        "Rocket League"
+                "installdir"  "rocketleague"
                 "StateFlags"  "4"
                 "LastPlayed"  "1762800000"
                 "SizeOnDisk"  "21474836480"
@@ -209,6 +227,7 @@ mod tests {
             Manifest {
                 app_id: "252950".into(),
                 name: "Rocket League".into(),
+                install_dir: "rocketleague".into(),
                 installed: true,
                 last_played: 1_762_800_000,
                 size_on_disk: 21_474_836_480,

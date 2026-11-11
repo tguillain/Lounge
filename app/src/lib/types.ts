@@ -19,6 +19,12 @@ export type Game = {
   hidden: boolean;
 };
 
+export type Session = {
+  appId: number;
+  startedAt: number;
+  game: Game | null;
+};
+
 export type LibraryState =
   | { status: "loading" }
   | { status: "ready"; games: Game[] }

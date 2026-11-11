@@ -6,6 +6,7 @@
   type Props = {
     games: Game[];
     selectedIndex: number;
+    runningGameId: string | null;
     isBroken: (url: string) => boolean;
     onBroken: (url: string) => void;
     onSelect: (index: number) => void;
@@ -30,7 +31,7 @@
   const DRAG_THRESHOLD_PX = 6;
   const GLIDE_MS = 180;
 
-  let { games, selectedIndex, isBroken, onBroken, onSelect, onLaunch, onOptions }: Props = $props();
+  let { games, selectedIndex, runningGameId, isBroken, onBroken, onSelect, onLaunch, onOptions }: Props = $props();
 
   let viewportWidth = $state(0);
   let row = $state<HTMLDivElement>();
@@ -142,6 +143,7 @@
       <GameTile
         {game}
         selected={index === selectedIndex}
+        running={game.id === runningGameId}
         {isBroken}
         {onBroken}
         onSelect={() => onSelect(index)}

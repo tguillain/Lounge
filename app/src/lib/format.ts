@@ -53,7 +53,20 @@ export const greeting = (date: Date): string => {
   return "Good evening";
 };
 
-export const clockLabel = (date: Date): string => date.toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit" });
+export const playTimeLabel = (startedAtMs: number, nowMs: number): string => {
+  const minutes = Math.max(0, Math.floor((nowMs - startedAtMs) / 60_000));
+  if (minutes < 1) {
+    return "Just started";
+  }
+  const hours = Math.floor(minutes / 60);
+  const rest = minutes % 60;
+  return hours === 0 ? `Playing for ${rest} min` : `Playing for ${hours} h ${String(rest).padStart(2, "0")}`;
+};
+
+export const dateLabel = (date: Date): string =>
+  date.toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric" });
+
+export const clockLabel =(date: Date): string => date.toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit" });
 
 const hueOf = (text: string): number => {
   let hash = 0;

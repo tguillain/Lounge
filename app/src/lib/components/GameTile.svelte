@@ -6,6 +6,7 @@
   type Props = {
     game: Game;
     selected: boolean;
+    running: boolean;
     isBroken: (url: string) => boolean;
     onBroken: (url: string) => void;
     onSelect: () => void;
@@ -13,7 +14,7 @@
     onOptions: () => void;
   };
 
-  let { game, selected, isBroken, onBroken, onSelect, onLaunch, onOptions }: Props = $props();
+  let { game, selected, running, isBroken, onBroken, onSelect, onLaunch, onOptions }: Props = $props();
 
   const header = $derived(imageUrl(game.images.header));
   const showHeader = $derived(header !== null && !isBroken(header));
@@ -42,7 +43,9 @@
   {:else}
     <span class="name">{game.name}</span>
   {/if}
-  {#if game.hidden}
+  {#if running}
+    <span class="badge live"><span class="live-dot"></span>Now playing</span>
+  {:else if game.hidden}
     <span class="badge">Hidden</span>
   {/if}
 </button>
@@ -120,5 +123,19 @@
     font-size: 12px;
     font-weight: 600;
     color: var(--text);
+  }
+
+  .badge.live {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    color: var(--live-text);
+  }
+
+  .live-dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 999px;
+    background: var(--live);
   }
 </style>
