@@ -1,0 +1,60 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<title>Launcher — Lancement du jeu</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;family=Cinzel:wght@700&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0;background:#0A0A0C}
+@keyframes launchSlide{0%{transform:translateX(-100%)}100%{transform:translateX(260%)}}
+@keyframes launchBreath{0%,100%{opacity:.85}50%{opacity:1}}
+</style>
+</helmet>
+<div style="width: 1440px; height: 900px; position: relative; overflow: hidden; background: #0A0A0C; color: #F5F5F7; font-family: Inter, -apple-system, 'Segoe UI', sans-serif">
+  <div aria-hidden="true" style="position: absolute; inset: 0; background: radial-gradient(42% 62% at 72% 36%, #FF7A2FD9 0%, transparent 72%), radial-gradient(55% 75% at 96% 92%, #B3261ECC 0%, transparent 70%), radial-gradient(40% 50% at 50% 0%, #B3261E55 0%, transparent 70%), linear-gradient(160deg, #2A0E0A 0%, #120807 100%); transform: scale(1.06); animation: launchBreath 3s ease-in-out infinite"></div>
+  <div aria-hidden="true" style="position: absolute; inset: 0; background: radial-gradient(60% 60% at 50% 50%, rgba(10,10,12,.5) 0%, rgba(10,10,12,.92) 100%)"></div>
+
+  <div style="position: relative; height: 100%; box-sizing: border-box; padding: 36px 64px 32px; display: flex; flex-direction: column">
+    <header style="display: flex; justify-content: flex-end">
+      <span style="font-size: 17px; font-weight: 600; font-variant-numeric: tabular-nums">21:47</span>
+    </header>
+
+    <main style="flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 28px; text-align: center">
+      <h1 style="margin: 0; font-family: Cinzel, serif; font-size: 76px; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; line-height: 1.05; color: #FFFFFF; text-shadow: 0 6px 40px rgba(0,0,0,.4)">Horizon de Cendres</h1>
+      <div role="progressbar" aria-label="Lancement en cours" style="width: 220px; height: 3px; border-radius: 999px; background: rgba(255,255,255,.18); overflow: hidden">
+        <div style="width: 40%; height: 100%; border-radius: 999px; background: #F5F5F7; animation: launchSlide 1.4s ease-in-out infinite"></div>
+      </div>
+      <div style="display: flex; flex-direction: column; gap: 6px">
+        <span style="font-size: 17px; font-weight: 500; color: #F5F5F7">Lancement via Steam…</span>
+        <span style="font-size: 14px; color: #AEAEB2">Dernière session il y a 2 h</span>
+      </div>
+    </main>
+
+    <footer style="display: flex; align-items: center; justify-content: space-between; font-size: 14px; color: #AEAEB2">
+      <span style="display: flex; align-items: center; gap: 10px">
+        <span style="min-width: 24px; height: 24px; box-sizing: border-box; padding: 0 8px; border-radius: 999px; border: 1.5px solid #8E8E93; border-bottom-width: 3px; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 600; color: #F5F5F7">PS</span>
+        Pendant le jeu, appuie sur PS pour ouvrir le menu rapide.
+      </span>
+      <span style="display: flex; align-items: center; gap: 8px">
+        <span style="width: 24px; height: 24px; box-sizing: border-box; border-radius: 999px; border: 1.5px solid #8E8E93; display: flex; align-items: center; justify-content: center; color: #F5F5F7"><svg aria-hidden="true" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><path d="M5 12a7 7 0 1 0 14 0a7 7 0 1 0 -14 0"></path></svg></span>
+        Annuler
+      </span>
+    </footer>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":900}}'>
+class Component extends DCLogic {
+  renderVals() {
+    return {};
+  }
+}
+</script>
+</body>
+</html>

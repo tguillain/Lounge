@@ -1,0 +1,112 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<title>Launcher — Menu rapide</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0;background:#0A0A0C}
+a{color:#F5F5F7;text-decoration:none}a:hover{color:#FFFFFF}
+</style>
+</helmet>
+<div style="width: 1440px; height: 900px; position: relative; overflow: hidden; background: #0A0A0C; color: #F5F5F7; font-family: Inter, -apple-system, 'Segoe UI', sans-serif">
+  <div aria-hidden="true" style="position: absolute; inset: -40px; filter: blur(28px); background: radial-gradient(42% 62% at 72% 36%, #FF7A2FD9 0%, transparent 72%), radial-gradient(55% 75% at 96% 92%, #B3261ECC 0%, transparent 70%), linear-gradient(160deg, #2A0E0A 0%, #120807 100%)"></div>
+  <div aria-hidden="true" style="position: absolute; inset: 0; background: rgba(10,10,12,.62)"></div>
+  <div aria-hidden="true" style="position: absolute; left: 64px; top: 330px; display: flex; flex-direction: column; gap: 18px; opacity: .35; filter: blur(2px)">
+    <span style="font-size: 76px; font-weight: 700; letter-spacing: -0.035em; line-height: 1">Horizon de Cendres</span>
+    <span style="width: 240px; height: 4px; border-radius: 999px; background: rgba(255,255,255,.5)"></span>
+  </div>
+
+  <aside aria-label="Menu rapide" style="position: absolute; top: 24px; right: 24px; bottom: 24px; width: 440px; box-sizing: border-box; padding: 28px; border-radius: 30px; background: rgba(28,28,32,.72); border: 1px solid rgba(255,255,255,.12); backdrop-filter: blur(40px); box-shadow: 0 30px 80px rgba(0,0,0,.55); display: flex; flex-direction: column; gap: 22px">
+
+    <div style="display: flex; align-items: flex-end; justify-content: space-between">
+      <div style="display: flex; flex-direction: column; gap: 2px">
+        <span style="font-size: 52px; font-weight: 700; letter-spacing: -0.03em; line-height: 1; font-variant-numeric: tabular-nums">21:47</span>
+        <span style="font-size: 15px; color: #AEAEB2">Mercredi 11 novembre</span>
+      </div>
+      <a href="Settings.dc.html" aria-label="Réglages" style="box-sizing: border-box; width: 44px; height: 44px; border-radius: 999px; border: 1px solid rgba(255,255,255,.14); background: rgba(255,255,255,.1); color: #F5F5F7; display: flex; align-items: center; justify-content: center; cursor: pointer; padding: 0">
+        <svg aria-hidden="true" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"></path></svg>
+      </a>
+    </div>
+
+    <section aria-label="Jeu en cours" style="display: flex; flex-direction: column; gap: 14px; padding: 16px; border-radius: 20px; background: rgba(255,255,255,.06)">
+      <div style="display: flex; align-items: center; gap: 14px">
+        <span aria-hidden="true" style="width: 56px; height: 56px; flex: 0 0 auto; border-radius: 12px; background: radial-gradient(70% 90% at 78% 22%, #FF7A2F 0%, transparent 70%), radial-gradient(80% 100% at 12% 100%, #B3261E 0%, transparent 70%), linear-gradient(160deg, #2A0E0A 0%, #120807 100%)"></span>
+        <span style="display: flex; flex-direction: column; gap: 3px">
+          <span style="display: flex; align-items: center; gap: 6px; font-size: 12px; font-weight: 600; letter-spacing: .12em; text-transform: uppercase; color: #7EE2A0"><span style="width: 7px; height: 7px; border-radius: 999px; background: #30D158"></span>En cours</span>
+          <span style="font-size: 17px; font-weight: 600">Horizon de Cendres</span>
+          <span style="font-size: 13px; color: #AEAEB2">Session : 1 h 12</span>
+        </span>
+      </div>
+      <div style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px">
+        <a href="NowPlaying.dc.html" style="height: 48px; border-radius: 14px; background: #F5F5F7; color: #0A0A0C; font-size: 14px; font-weight: 600; display: flex; align-items: center; justify-content: center">Retour au launcher</a>
+        <button type="button" style="height: 48px; border-radius: 14px; background: rgba(255,69,58,.16); border: 1px solid rgba(255,69,58,.35); color: #FF8A80; font-family: inherit; font-size: 14px; font-weight: 600; cursor: pointer">Quitter le jeu</button>
+      </div>
+    </section>
+
+    <div style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px">
+      <button type="button" aria-pressed="true" style="height: 76px; padding: 0 16px; border: 0; border-radius: 18px; background: #F5F5F7; color: #0A0A0C; font-family: inherit; display: flex; align-items: center; gap: 12px; text-align: left; cursor: pointer">
+        <svg aria-hidden="true" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"><path d="M2 8.5a15 15 0 0 1 20 0"></path><path d="M5 12a10 10 0 0 1 14 0"></path><path d="M8.5 15.5a5 5 0 0 1 7 0"></path><circle cx="12" cy="19" r="1" fill="currentColor"></circle></svg>
+        <span style="display: flex; flex-direction: column; gap: 2px"><span style="font-size: 15px; font-weight: 600">Wi-Fi</span><span style="font-size: 13px; color: #48484A">Connecté</span></span>
+      </button>
+      <button type="button" aria-pressed="true" style="height: 76px; padding: 0 16px; border: 0; border-radius: 18px; background: #F5F5F7; color: #0A0A0C; font-family: inherit; display: flex; align-items: center; gap: 12px; text-align: left; cursor: pointer">
+        <svg aria-hidden="true" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M7 6h10a5 5 0 0 1 4.9 6l-1 4.6a2.4 2.4 0 0 1-4.1 1.1L14.6 15H9.4l-2.2 2.7a2.4 2.4 0 0 1-4.1-1.1L2.1 12A5 5 0 0 1 7 6z"></path><path d="M6.5 10.5h3M8 9v3"></path></svg>
+        <span style="display: flex; flex-direction: column; gap: 2px"><span style="font-size: 15px; font-weight: 600">Manette PS5</span><span style="font-size: 13px; color: #48484A">Batterie 82 %</span></span>
+      </button>
+      <button type="button" aria-pressed="true" style="height: 76px; padding: 0 16px; border: 0; border-radius: 18px; background: #F5F5F7; color: #0A0A0C; font-family: inherit; display: flex; align-items: center; gap: 12px; text-align: left; cursor: pointer">
+        <svg aria-hidden="true" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M13 2L4 14h7l-1 8 9-12h-7z"></path></svg>
+        <span style="display: flex; flex-direction: column; gap: 2px"><span style="font-size: 15px; font-weight: 600">Performance</span><span style="font-size: 13px; color: #48484A">Maximale</span></span>
+      </button>
+      <button type="button" aria-pressed="false" style="height: 76px; padding: 0 16px; border-radius: 18px; background: rgba(255,255,255,.08); border: 1px solid rgba(255,255,255,.1); color: #F5F5F7; font-family: inherit; display: flex; align-items: center; gap: 12px; text-align: left; cursor: pointer">
+        <svg aria-hidden="true" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M20 14.5A8 8 0 1 1 9.5 4a6.5 6.5 0 0 0 10.5 10.5z"></path></svg>
+        <span style="display: flex; flex-direction: column; gap: 2px"><span style="font-size: 15px; font-weight: 600">Ne pas déranger</span><span style="font-size: 13px; color: #AEAEB2">Désactivé</span></span>
+      </button>
+    </div>
+
+    <div style="display: flex; flex-direction: column; gap: 12px; padding: 16px 18px; border-radius: 18px; background: rgba(255,255,255,.06)">
+      <div style="display: flex; justify-content: space-between; font-size: 14px">
+        <label for="volume" style="font-weight: 600">Volume</label>
+        <span style="color: #AEAEB2">Casque</span>
+      </div>
+      <div style="display: flex; align-items: center; gap: 12px">
+        <svg aria-hidden="true" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#AEAEB2" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 9v6h4l5 4V5L8 9z"></path></svg>
+        <input id="volume" type="range" min="0" max="100" value="70" style="flex: 1; accent-color: #F5F5F7; height: 28px">
+        <svg aria-hidden="true" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#AEAEB2" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 9v6h4l5 4V5L8 9z"></path><path d="M16.5 8.5a5 5 0 0 1 0 7"></path><path d="M19 6a8.5 8.5 0 0 1 0 12"></path></svg>
+      </div>
+    </div>
+
+    <div style="display: flex; flex-direction: column; gap: 10px; flex: 1; min-height: 0">
+      <h2 style="margin: 0; font-size: 14px; font-weight: 600; color: #AEAEB2">Notifications</h2>
+      <div style="display: flex; align-items: center; gap: 12px; padding: 12px 14px; border-radius: 16px; background: rgba(255,255,255,.06)">
+        <span style="width: 40px; height: 40px; flex: 0 0 auto; border-radius: 10px; background: radial-gradient(70% 90% at 78% 22%, #FF3D9A 0%, transparent 70%), linear-gradient(160deg, #1A0B2E 0%, #07040F 100%)"></span>
+        <span style="display: flex; flex-direction: column; gap: 2px; flex: 1"><span style="font-size: 14px; font-weight: 600">Téléchargement terminé</span><span style="font-size: 13px; color: #AEAEB2">Neon Drift est prêt à jouer</span></span>
+        <span style="font-size: 12px; color: #8E8E93">5 min</span>
+      </div>
+    </div>
+
+    <div style="display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px">
+      <button type="button" style="height: 56px; border-radius: 16px; background: rgba(255,255,255,.08); border: 1px solid rgba(255,255,255,.1); color: #F5F5F7; font-family: inherit; font-size: 14px; font-weight: 500; cursor: pointer">Veille</button>
+      <button type="button" style="height: 56px; border-radius: 16px; background: rgba(255,255,255,.08); border: 1px solid rgba(255,255,255,.1); color: #F5F5F7; font-family: inherit; font-size: 14px; font-weight: 500; cursor: pointer">Redémarrer</button>
+      <button type="button" style="height: 56px; border-radius: 16px; background: rgba(255,69,58,.16); border: 1px solid rgba(255,69,58,.35); color: #FF8A80; font-family: inherit; font-size: 14px; font-weight: 600; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 8px">
+        <svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M12 3v8"></path><path d="M6.3 6.8a8 8 0 1 0 11.4 0"></path></svg>
+        Éteindre
+      </button>
+    </div>
+  </aside>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":900}}'>
+class Component extends DCLogic {
+  renderVals() {
+    return {};
+  }
+}
+</script>
+</body>
+</html>

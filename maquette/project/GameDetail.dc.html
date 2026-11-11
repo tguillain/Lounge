@@ -1,0 +1,135 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<title>Launcher — Fiche jeu</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&amp;family=Cinzel:wght@700&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0;background:#0A0A0C}
+a{color:#F5F5F7;text-decoration:none}a:hover{color:#FFFFFF}
+</style>
+</helmet>
+<div style="width: 1440px; height: 900px; position: relative; overflow: hidden; background: #0A0A0C; color: #F5F5F7; font-family: Inter, -apple-system, 'Segoe UI', sans-serif">
+  <div aria-hidden="true" style="position: absolute; inset: 0; background: radial-gradient(45% 65% at 74% 32%, #FF7A2FD9 0%, transparent 72%), radial-gradient(55% 75% at 98% 88%, #B3261ECC 0%, transparent 70%), radial-gradient(40% 50% at 50% 0%, #B3261E55 0%, transparent 70%), linear-gradient(160deg, #2A0E0A 0%, #120807 100%)"></div>
+  <div aria-hidden="true" style="position: absolute; inset: 0; background: linear-gradient(90deg, rgba(10,10,12,.94) 0%, rgba(10,10,12,.65) 40%, rgba(10,10,12,0) 75%), linear-gradient(0deg, #0A0A0C 0%, rgba(10,10,12,.9) 34%, rgba(10,10,12,0) 62%)"></div>
+
+  <div style="position: relative; height: 100%; box-sizing: border-box; padding: 36px 64px 44px; display: flex; flex-direction: column">
+    <header style="display: flex; align-items: center; justify-content: space-between">
+      <a href="Main.dc.html" style="height: 44px; padding: 0 18px 0 12px; box-sizing: border-box; border-radius: 999px; background: rgba(255,255,255,.1); border: 1px solid rgba(255,255,255,.14); display: flex; align-items: center; gap: 6px; font-size: 15px; font-weight: 500">
+        <svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 5l-7 7 7 7"></path></svg>
+        Accueil
+      </a>
+      <span style="font-size: 17px; font-weight: 600; font-variant-numeric: tabular-nums">21:47</span>
+    </header>
+
+    <section style="flex: 1; display: flex; flex-direction: column; justify-content: center; max-width: 640px; gap: 20px">
+      <div style="display: flex; align-items: center; gap: 10px">
+        <span style="padding: 5px 12px; border-radius: 999px; background: rgba(255,255,255,.12); border: 1px solid rgba(255,255,255,.12); font-size: 13px; font-weight: 600">Steam</span>
+        <span style="padding: 5px 12px; border-radius: 999px; background: rgba(48,209,88,.16); border: 1px solid rgba(48,209,88,.35); font-size: 13px; font-weight: 600; color: #7EE2A0">Installé</span>
+      </div>
+      <h1 style="margin: 0; font-family: Cinzel, serif; font-size: 72px; line-height: 1.05; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; color: #FFFFFF; text-shadow: 0 6px 40px rgba(0,0,0,.35)">Horizon de Cendres</h1>
+      <p style="margin: 0; font-size: 18px; line-height: 1.5; color: #D1D1D6; max-width: 520px">Action-aventure · Multijoueur en ligne · Manette prise en charge</p>
+      <div style="display: flex; align-items: center; gap: 14px; margin-top: 10px">
+        <button type="button" style="height: 58px; padding: 0 36px; border: 0; border-radius: 999px; background: #F5F5F7; color: #0A0A0C; font-family: inherit; font-size: 18px; font-weight: 600; display: flex; align-items: center; gap: 10px; cursor: pointer; box-shadow: 0 10px 30px rgba(0,0,0,.35)">
+          <svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24"><path d="M6 3.8v16.4a1 1 0 0 0 1.5.9l13.2-8.2a1 1 0 0 0 0-1.8L7.5 2.9A1 1 0 0 0 6 3.8z" fill="currentColor"></path></svg>
+          Jouer
+        </button>
+        <button type="button" aria-label="Ajouter aux favoris" style="width: 58px; height: 58px; border-radius: 999px; background: rgba(255,255,255,.12); border: 1px solid rgba(255,255,255,.16); color: #F5F5F7; display: flex; align-items: center; justify-content: center; cursor: pointer; padding: 0">
+          <svg aria-hidden="true" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"><path d="M12 20s-7-4.4-9.3-9A5 5 0 0 1 12 6a5 5 0 0 1 9.3 5c-2.3 4.6-9.3 9-9.3 9z"></path></svg>
+        </button>
+        <button type="button" aria-label="Ouvrir le dossier du jeu" style="width: 58px; height: 58px; border-radius: 999px; background: rgba(255,255,255,.12); border: 1px solid rgba(255,255,255,.16); color: #F5F5F7; display: flex; align-items: center; justify-content: center; cursor: pointer; padding: 0">
+          <svg aria-hidden="true" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"><path d="M3 7a2 2 0 0 1 2-2h4l2 2.5h8a2 2 0 0 1 2 2V17a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path></svg>
+        </button>
+        <button type="button" aria-label="Plus d'options" style="width: 58px; height: 58px; border-radius: 999px; background: rgba(255,255,255,.12); border: 1px solid rgba(255,255,255,.16); color: #F5F5F7; display: flex; align-items: center; justify-content: center; cursor: pointer; padding: 0">
+          <svg aria-hidden="true" width="22" height="22" viewBox="0 0 24 24" fill="currentColor"><circle cx="5" cy="12" r="1.8"></circle><circle cx="12" cy="12" r="1.8"></circle><circle cx="19" cy="12" r="1.8"></circle></svg>
+        </button>
+      </div>
+    </section>
+
+    <section aria-label="Statistiques" style="display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 16px">
+      <div style="padding: 20px 22px; border-radius: 18px; background: rgba(255,255,255,.07); border: 1px solid rgba(255,255,255,.1); display: flex; flex-direction: column; gap: 6px">
+        <span style="font-size: 13px; font-weight: 500; color: #AEAEB2">Temps de jeu</span>
+        <span style="font-size: 28px; font-weight: 700; letter-spacing: -0.02em">34 h</span>
+      </div>
+      <div style="padding: 20px 22px; border-radius: 18px; background: rgba(255,255,255,.07); border: 1px solid rgba(255,255,255,.1); display: flex; flex-direction: column; gap: 6px">
+        <span style="font-size: 13px; font-weight: 500; color: #AEAEB2">Dernière session</span>
+        <span style="font-size: 28px; font-weight: 700; letter-spacing: -0.02em">Aujourd'hui</span>
+      </div>
+      <div style="padding: 20px 22px; border-radius: 18px; background: rgba(255,255,255,.07); border: 1px solid rgba(255,255,255,.1); display: flex; flex-direction: column; gap: 6px">
+        <span style="font-size: 13px; font-weight: 500; color: #AEAEB2">Amis en jeu</span>
+        <span style="display: flex; align-items: center; gap: 12px">
+          <span style="font-size: 28px; font-weight: 700; letter-spacing: -0.02em">3</span>
+          <span aria-hidden="true" style="display: flex">
+            <span style="width: 26px; height: 26px; box-sizing: border-box; border-radius: 999px; background: #5B8DEF; border: 2px solid #1F1F23"></span>
+            <span style="width: 26px; height: 26px; box-sizing: border-box; border-radius: 999px; background: #FF9F0A; border: 2px solid #1F1F23; margin-left: -8px"></span>
+            <span style="width: 26px; height: 26px; box-sizing: border-box; border-radius: 999px; background: #30D158; border: 2px solid #1F1F23; margin-left: -8px"></span>
+          </span>
+        </span>
+      </div>
+      <div style="padding: 20px 22px; border-radius: 18px; background: rgba(255,255,255,.07); border: 1px solid rgba(255,255,255,.1); display: flex; flex-direction: column; gap: 6px">
+        <span style="font-size: 13px; font-weight: 500; color: #AEAEB2">Stockage</span>
+        <span style="font-size: 28px; font-weight: 700; letter-spacing: -0.02em">78 Go</span>
+        <span style="font-size: 13px; color: #AEAEB2">SSD · D:\Jeux</span>
+      </div>
+    </section>
+
+    <section aria-label="Captures" style="display: flex; flex-direction: column; gap: 14px; margin-top: 28px">
+      <h2 style="margin: 0; font-size: 18px; font-weight: 600">Captures</h2>
+      <div style="display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 16px">
+        <button type="button" aria-label="Capture 1" style="aspect-ratio: 16 / 9; border: 0; padding: 0; border-radius: 14px; cursor: pointer; background: radial-gradient(70% 90% at 30% 30%, #FF7A2F 0%, transparent 70%), linear-gradient(160deg, #3A140C 0%, #120807 100%)"></button>
+        <button type="button" aria-label="Capture 2" style="aspect-ratio: 16 / 9; border: 0; padding: 0; border-radius: 14px; cursor: pointer; background: radial-gradient(80% 100% at 80% 100%, #B3261E 0%, transparent 70%), linear-gradient(200deg, #2A0E0A 0%, #0A0505 100%)"></button>
+        <button type="button" aria-label="Capture 3" style="aspect-ratio: 16 / 9; border: 0; padding: 0; border-radius: 14px; cursor: pointer; background: radial-gradient(60% 80% at 50% 20%, #FFB36B 0%, transparent 70%), linear-gradient(180deg, #4A1A0E 0%, #120807 100%)"></button>
+        <button type="button" aria-label="Capture 4" style="aspect-ratio: 16 / 9; border: 0; padding: 0; border-radius: 14px; cursor: pointer; background: radial-gradient(70% 80% at 10% 90%, #FF5A1F 0%, transparent 70%), radial-gradient(50% 60% at 90% 10%, #7A1E0E 0%, transparent 70%), #160A08"></button>
+      </div>
+    </section>
+  </div>
+  <footer aria-label="Commandes" style="position: absolute; right: 64px; bottom: 12px; display: flex; gap: 28px; font-size: 14px; color: #AEAEB2">
+    <sc-for list="{{hints}}" as="h" hint-placeholder-count="3">
+      <span style="display: flex; align-items: center; gap: 8px">
+        <sc-if value="{{h.isShape}}" hint-placeholder-val="{{ false }}">
+          <span style="width: 24px; height: 24px; box-sizing: border-box; border-radius: 999px; border: 1.5px solid #8E8E93; display: flex; align-items: center; justify-content: center; color: #F5F5F7"><svg aria-hidden="true" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="{{h.path}}"></path></svg></span>
+        </sc-if>
+        <sc-if value="{{h.isLetter}}" hint-placeholder-val="{{ true }}">
+          <span style="width: 24px; height: 24px; box-sizing: border-box; border-radius: 999px; border: 1.5px solid #8E8E93; display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 700; color: #F5F5F7">{{h.text}}</span>
+        </sc-if>
+        <sc-if value="{{h.isKey}}" hint-placeholder-val="{{ false }}">
+          <span style="min-width: 24px; height: 24px; box-sizing: border-box; padding: 0 8px; border-radius: {{h.radius}}; border: 1.5px solid #8E8E93; border-bottom-width: 3px; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 600; color: #F5F5F7">{{h.text}}</span>
+        </sc-if>
+        <span>{{h.label}}</span>
+      </span>
+    </sc-for>
+  </footer>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"input":{"editor":"enum","options":["PlayStation","Xbox","Clavier / souris"],"default":"PlayStation"},"$preview":{"width":1440,"height":900}}'>
+class Component extends DCLogic {
+  hints(input, actions) {
+    const shape = (p) => ({ kind: 'shape', path: p });
+    const letter = (t) => ({ kind: 'letter', text: t });
+    const key = (t, r) => ({ kind: 'key', text: t, radius: r || '6px' });
+    const maps = {
+      'PlayStation': { confirm: shape('M6 6l12 12M18 6L6 18'), back: shape('M5 12a7 7 0 1 0 14 0a7 7 0 1 0 -14 0'), options: shape('M12 4.5l8 14H4z'), menu: key('PS', '999px') },
+      'Xbox': { confirm: letter('A'), back: letter('B'), options: letter('Y'), menu: letter('≡') },
+      'Clavier / souris': { confirm: key('Entrée'), back: key('Échap'), options: key('Clic droit'), menu: key('Tab') }
+    };
+    const map = maps[input] || maps['PlayStation'];
+    return actions.map((a) => {
+      const g = map[a[0]];
+      return { label: a[1], isShape: g.kind === 'shape', isLetter: g.kind === 'letter', isKey: g.kind === 'key', path: g.path || '', text: g.text || '', radius: g.radius || '6px' };
+    });
+  }
+  renderVals() {
+    return {
+      hints: this.hints(this.props.input ?? 'PlayStation', [['confirm', 'Jouer'], ['back', 'Retour'], ['options', 'Plus d’options']])
+    };
+  }
+}
+</script>
+</body>
+</html>

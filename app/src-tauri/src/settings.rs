@@ -1,0 +1,69 @@
+use std::collections::BTreeSet;
+use std::fs;
+use std::path::Path;
+
+use serde::{Deserialize, Serialize};
+
+#[derive(Debug, Default, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct Settings {
+    #[serde(default)]
+    pub hidden_games: BTreeSet<String>,
+}
+
+pub fn load(path: &Path) -> Settings {
+    fs::read_to_string(path)
+        .ok()
+        .and_then(|content| serde_json::from_str(&content).ok())
+        .unwrap_or_default()
+}
+
+pub fn save(path: &Path, settings: &Settings) -> Result<(), String> {
+    if let Some(parent) = path.parent() {
+        fs::create_dir_all(parent).map_err(|error| error.to_string())?;
+    }
+    let content = serde_json::to_string_pretty(settings).map_err(|error| error.to_string())?;
+    fs::write(path, content).map_err(|error| error.to_string())
+}
+
+pub fn set_hidden(path: &Path, game_id: &str, hidden: bool) -> Result<(), String> {
+    let mut settings = load(path);
+    if hidden {
+        settings.hidden_games.insert(game_id.to_string());
+    } else {
+        settings.hidden_games.remove(game_id);
+    }
+    save(path, &settings)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn temp_settings_path(name: &str) -> std::path::PathBuf {
+        let dir = std::env::temp_dir().join(format!("game-launcher-test-{name}-{}", std::process::id()));
+        let _ = fs::remove_dir_all(&dir);
+        dir.join("settings.json")
+    }
+
+    #[test]
+    fn starts_empty_when_no_file_exists() {
+        assert_eq!(load(&temp_settings_path("missing")), Settings::default());
+    }
+
+    #[test]
+    fn remembers_and_forgets_a_hidden_game() {
+        let path = temp_settings_path("hide");
+        set_hidden(&path, "steam:920490", true).unwrap();
+        assert!(load(&path).hidden_games.contains("steam:920490"));
+        set_hidden(&path, "steam:920490", false).unwrap();
+        assert!(load(&path).hidden_games.is_empty());
+        let _ = fs::remove_dir_all(path.parent().unwrap());
+    }
+
+    #[test]
+    fn tolerates_a_file_without_the_hidden_list() {
+        let settings: Settings = serde_json::from_str("{}").unwrap();
+        assert!(settings.hidden_games.is_empty());
+    }
+}
