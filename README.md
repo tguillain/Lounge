@@ -16,6 +16,10 @@ A minimal, controller-first launcher that turns your Windows library into a cons
 
 </div>
 
+<p align="center">
+  <img src="docs/screenshots/home.jpg" alt="Lounge's Home screen: BeamNG.drive hero art with its logo and a Play button, Steam friends online on the right, and a Recently played shelf below" width="100%" />
+</p>
+
 ---
 
 Steam's Big Picture mode is heavy. Store launchers are noisy. Lounge is neither: one calm screen with your games, your friends and a big **Play** button, designed for a DualSense in your hands and the PC across the room.
@@ -37,6 +41,10 @@ Steam's Big Picture mode is heavy. Store launchers are noisy. Lounge is neither:
 - Filter by store (Steam, Epic Games) and **sort by play time**, recently played, name or size.
 - The line under each cover follows the sort: *145 h played*, *2 days ago*, *52 GB*.
 - Hide the clutter (tools, demos, benchmarks) from Home without losing it.
+
+<p align="center">
+  <img src="docs/screenshots/library.jpg" alt="Lounge's Library: a grid of game covers sorted by play time, with store filters and a Hidden games filter" width="100%" />
+</p>
 
 ### ⏯️ A Quick Menu in game
 - Press the **PS button** mid-game and a slim overlay slides in: *Resume game*, *Back to Lounge*, *Quit game*.
