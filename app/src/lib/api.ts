@@ -3,6 +3,7 @@ import { listen } from "@tauri-apps/api/event";
 import { getCurrentWebviewWindow } from "@tauri-apps/api/webviewWindow";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import type { PadAction } from "./input/gamepad-mapping";
+import { hueOf } from "./format";
 import { previewLibrary } from "./preview-library";
 import type { Downloads } from "./downloads";
 import type { AvailableUpdate, Battery, Friend, FriendsResult, Game, Preferences, Session, Toggle } from "./types";
@@ -147,7 +148,8 @@ const previewPreferences: Preferences = {
   vibration: true,
   showFriends: true,
   sounds: true,
-  version: "0.1.6",
+  lightbar: true,
+  version: "0.1.7",
   canUpdate: true,
 };
 
@@ -215,6 +217,18 @@ export const onSteamDownloads = async (handle: (downloads: Downloads) => void): 
     return () => {};
   }
   return listen<Downloads>("steam-downloads", (event) => handle(event.payload));
+};
+
+export const setLightbar = async (game: Game): Promise<void> => {
+  if (runsInTauri) {
+    await invoke("set_lightbar", { image: game.images.header ?? game.images.hero, fallbackHue: hueOf(game.name) });
+  }
+};
+
+export const releaseLightbar = async (): Promise<void> => {
+  if (runsInTauri) {
+    await invoke("release_lightbar");
+  }
 };
 
 export const pulseDualSense = (): void => {

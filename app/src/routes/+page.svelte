@@ -29,8 +29,10 @@
     openReleasesPage,
     openSteamApiKeyPage,
     pulseDualSense,
+    releaseLightbar,
     saveSteamApiKey,
     setGameHidden,
+    setLightbar,
     setStartWithWindows,
     setToggle,
     toggleFullscreen,
@@ -75,6 +77,7 @@
   const FRIENDS_REFRESH_MS = 60_000;
   const VISIBLE_FRIENDS = 5;
   const UPDATE_CHECK_MS = 6 * 60 * 60 * 1000;
+  const LIGHTBAR_DELAY_MS = 150;
 
   let library = $state<LibraryState>({ status: "loading" });
   let view = $state<View>("home");
@@ -129,6 +132,17 @@
     const url = imageUrl(source);
     return url && !brokenImages.has(url) ? url : null;
   };
+
+  const lightbarGame = $derived<Game | null>(view === "library" ? focusedLibraryGame : view === "home" ? selected : null);
+
+  $effect(() => {
+    const game = lightbarGame;
+    if (!game || !preferences?.lightbar) {
+      return;
+    }
+    const timer = setTimeout(() => setLightbar(game).catch(() => {}), LIGHTBAR_DELAY_MS);
+    return () => clearTimeout(timer);
+  });
 
   const heroUrl = $derived(selected ? usableImage(selected.images.hero) : null);
 
@@ -305,6 +319,9 @@
       await (key === "startWithWindows" ? setStartWithWindows(enabled) : setToggle(key, enabled));
       if (key === "vibration" && enabled) {
         feedback();
+      }
+      if (key === "lightbar" && !enabled) {
+        await releaseLightbar();
       }
     } catch (error) {
       preferences = { ...preferences, [key]: !enabled };

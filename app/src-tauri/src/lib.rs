@@ -1,8 +1,10 @@
 mod autostart;
+mod dualsense_output;
 mod epic;
 mod focus;
 mod friends;
 mod game;
+mod lightbar;
 mod logo;
 mod pad;
 mod quick_menu;
@@ -43,6 +45,7 @@ struct Preferences {
     vibration: bool,
     show_friends: bool,
     sounds: bool,
+    lightbar: bool,
     version: String,
     can_update: bool,
 }
@@ -95,6 +98,26 @@ fn get_controller_battery(pad: tauri::State<'_, pad::PadControl>) -> Option<pad:
 }
 
 #[tauri::command]
+async fn set_lightbar(app: tauri::AppHandle, image: Option<String>, fallback_hue: f32) -> Result<(), String> {
+    let colors_app = app.clone();
+    let color = tauri::async_runtime::spawn_blocking(move || {
+        image
+            .filter(|path| !path.starts_with("http"))
+            .and_then(|path| colors_app.state::<lightbar::ColorCache>().color_of(&path))
+    })
+    .await
+    .map_err(|error| error.to_string())?
+    .unwrap_or_else(|| lightbar::hue_color(fallback_hue));
+    app.state::<pad::PadControl>().set_light(Some(color));
+    Ok(())
+}
+
+#[tauri::command]
+fn release_lightbar(pad: tauri::State<'_, pad::PadControl>) {
+    pad.set_light(None);
+}
+
+#[tauri::command]
 fn pulse_controller(pad: tauri::State<'_, pad::PadControl>) {
     pad.pulse();
 }
@@ -115,6 +138,7 @@ fn get_preferences(app: tauri::AppHandle) -> Result<Preferences, String> {
         vibration: saved.vibration,
         show_friends: saved.show_friends,
         sounds: saved.sounds,
+        lightbar: saved.lightbar,
         version: app.package_info().version.to_string(),
         can_update: update::AVAILABLE,
     })
@@ -244,6 +268,7 @@ pub fn run() {
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_updater::Builder::new().build())
         .manage(update::UpdateState::default())
+        .manage(lightbar::ColorCache::default())
         .manage(WindowState::default())
         .manage(SessionState::default())
         .setup(|app| {
@@ -271,6 +296,8 @@ pub fn run() {
             install_update,
             pulse_controller,
             get_controller_battery,
+            set_lightbar,
+            release_lightbar,
             launch_game,
             get_session,
             get_friends,

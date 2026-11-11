@@ -18,6 +18,8 @@ pub struct Settings {
     pub show_friends: bool,
     #[serde(default = "enabled")]
     pub sounds: bool,
+    #[serde(default = "enabled")]
+    pub lightbar: bool,
 }
 
 impl Default for Settings {
@@ -28,6 +30,7 @@ impl Default for Settings {
             vibration: true,
             show_friends: true,
             sounds: true,
+            lightbar: true,
         }
     }
 }
@@ -39,6 +42,7 @@ pub enum Toggle {
     Vibration,
     ShowFriends,
     Sounds,
+    Lightbar,
 }
 
 fn enabled() -> bool {
@@ -84,6 +88,7 @@ pub fn set_toggle(path: &Path, toggle: Toggle, enabled: bool) -> Result<(), Stri
         Toggle::Vibration => &mut settings.vibration,
         Toggle::ShowFriends => &mut settings.show_friends,
         Toggle::Sounds => &mut settings.sounds,
+        Toggle::Lightbar => &mut settings.lightbar,
     };
     *field = enabled;
     save(path, &settings)

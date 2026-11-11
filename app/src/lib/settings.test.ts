@@ -9,6 +9,7 @@ const preferences: Preferences = {
   vibration: true,
   showFriends: true,
   sounds: true,
+  lightbar: true,
   version: "0.1.1",
   canUpdate: true,
 };
@@ -77,7 +78,7 @@ describe("sectionsOf", () => {
   it("groups rows by section and keeps their position in the list", () => {
     const groups = sectionsOf(settingsRows(preferences, "connected", upToDate));
     expect(groups.map((group) => group.section)).toEqual(["General", "Controller", "Steam friends", "About"]);
-    expect(groups[2].rows.map(({ index }) => index)).toEqual([4, 5, 6]);
+    expect(groups[2].rows.map(({ index }) => index)).toEqual([5, 6, 7]);
     expect(groups[3].rows.map(({ row }) => row.id)).toEqual(["update", "releases"]);
   });
 });

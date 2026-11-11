@@ -82,7 +82,7 @@ export const dateLabel = (date: Date): string =>
 
 export const clockLabel =(date: Date): string => date.toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit" });
 
-const hueOf = (text: string): number => {
+export const hueOf = (text: string): number => {
   let hash = 0;
   for (const character of text) {
     hash = (hash * 31 + character.charCodeAt(0)) % 360;

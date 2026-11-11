@@ -7,6 +7,7 @@ use hidapi::{HidApi, HidDevice};
 use serde::Serialize;
 use tauri::{AppHandle, Emitter, Manager};
 
+use crate::dualsense_output::{self, Common, Transport};
 use crate::quick_menu;
 
 const SONY_VENDOR_ID: u16 = 0x054C;
@@ -16,9 +17,6 @@ const READ_TIMEOUT_MS: i32 = 50;
 const STICK_UP_THRESHOLD: u8 = 48;
 const STICK_DOWN_THRESHOLD: u8 = 208;
 const USB_INPUT_LENGTH: usize = 64;
-const USB_OUTPUT_REPORT_ID: u8 = 0x02;
-const USB_OUTPUT_LENGTH: usize = 48;
-const RUMBLE_FLAGS: u8 = 0x03;
 const PULSE_STRENGTH: u8 = 0x70;
 const PULSE_DURATION: Duration = Duration::from_millis(35);
 const USB_STATUS_OFFSET: usize = 53;
@@ -29,14 +27,31 @@ const CALIBRATION_FEATURE_REPORT: u8 = 0x05;
 const CALIBRATION_REPORT_LENGTH: usize = 41;
 pub const BATTERY_EVENT: &str = "controller-battery";
 
+enum PadCommand {
+    Pulse,
+    Light,
+}
+
 pub struct PadControl {
-    pulses: Sender<()>,
+    commands: Sender<PadCommand>,
     battery: Mutex<Option<Battery>>,
+    light: Mutex<Option<[u8; 3]>>,
 }
 
 impl PadControl {
     pub fn pulse(&self) {
-        let _ = self.pulses.send(());
+        let _ = self.commands.send(PadCommand::Pulse);
+    }
+
+    pub fn set_light(&self, color: Option<[u8; 3]>) {
+        if let Ok(mut light) = self.light.lock() {
+            *light = color;
+        }
+        let _ = self.commands.send(PadCommand::Light);
+    }
+
+    fn wanted_light(&self) -> Option<[u8; 3]> {
+        self.light.lock().ok().and_then(|light| *light)
     }
 
     pub fn battery(&self) -> Option<Battery> {
@@ -76,13 +91,13 @@ pub enum PadButton {
 }
 
 pub fn spawn(app: AppHandle) {
-    let (sender, pulses) = mpsc::channel();
-    app.manage(PadControl { pulses: sender, battery: Mutex::new(None) });
+    let (sender, commands) = mpsc::channel();
+    app.manage(PadControl { commands: sender, battery: Mutex::new(None), light: Mutex::new(None) });
     thread::spawn(move || loop {
         if let Ok(mut api) = HidApi::new() {
             loop {
                 if let Some(device) = open_dualsense(&api) {
-                    read_until_disconnected(&app, &device, &pulses);
+                    read_until_disconnected(&app, &device, &commands);
                     publish_battery(&app, None);
                 }
                 thread::sleep(RETRY_DELAY);
@@ -99,22 +114,60 @@ fn open_dualsense(api: &HidApi) -> Option<HidDevice> {
         .and_then(|info| info.open_device(api).ok())
 }
 
-fn read_until_disconnected(app: &AppHandle, device: &HidDevice, pulses: &Receiver<()>) {
+struct Output<'a> {
+    device: &'a HidDevice,
+    transport: Option<Transport>,
+    sequence: u8,
+    lit: Option<[u8; 3]>,
+    startup_glow_stopped: bool,
+}
+
+impl Output<'_> {
+    fn send(&mut self, common: &Common) -> bool {
+        let Some(transport) = self.transport else {
+            return false;
+        };
+        self.sequence = (self.sequence + 1) % 16;
+        self.device.write(&dualsense_output::report(transport, self.sequence, common)).is_ok()
+    }
+
+    fn show(&mut self, wanted: Option<[u8; 3]>) {
+        if self.transport.is_none() || wanted == self.lit {
+            return;
+        }
+        let sent = match wanted {
+            Some(color) => {
+                if !self.startup_glow_stopped {
+                    self.startup_glow_stopped = self.send(&dualsense_output::stop_startup_glow());
+                }
+                self.send(&dualsense_output::lightbar(color))
+            }
+            None => self.send(&dualsense_output::release_lights()),
+        };
+        if sent {
+            self.lit = wanted;
+        }
+    }
+}
+
+fn read_until_disconnected(app: &AppHandle, device: &HidDevice, commands: &Receiver<PadCommand>) {
     let mut buffer = [0u8; 128];
     let mut previous = Buttons::default();
-    let mut wired = false;
     let mut rumble_ends_at: Option<Instant> = None;
     let mut asked_for_full_reports = false;
-    pulses.try_iter().for_each(drop);
+    let mut output = Output { device, transport: None, sequence: 0, lit: None, startup_glow_stopped: false };
+    commands.try_iter().for_each(drop);
     loop {
-        let pulse_requested = pulses.try_iter().count() > 0;
-        if pulse_requested && wired && device.write(&usb_rumble_report(PULSE_STRENGTH)).is_ok() {
+        let pulse_requested = commands.try_iter().fold(false, |pulse, command| pulse || matches!(command, PadCommand::Pulse));
+        let wired = output.transport == Some(Transport::Usb);
+        if pulse_requested && wired && output.send(&dualsense_output::rumble(PULSE_STRENGTH)) {
             rumble_ends_at = Some(Instant::now() + PULSE_DURATION);
         }
         if rumble_ends_at.is_some_and(|end| Instant::now() >= end) {
-            let _ = device.write(&usb_rumble_report(0));
+            output.send(&dualsense_output::rumble(0));
             rumble_ends_at = None;
         }
+        output.show(app.state::<PadControl>().wanted_light());
         let timeout = rumble_ends_at
             .map(|end| end.saturating_duration_since(Instant::now()).as_millis().clamp(1, READ_TIMEOUT_MS as u128) as i32)
             .unwrap_or(READ_TIMEOUT_MS);
@@ -122,7 +175,9 @@ fn read_until_disconnected(app: &AppHandle, device: &HidDevice, pulses: &Receive
             Ok(0) => continue,
             Ok(length) => {
                 let report = &buffer[..length];
-                wired = is_usb_report(report);
+                if let Some(transport) = transport_of(report) {
+                    output.transport = Some(transport);
+                }
                 if is_short_bluetooth_report(report) && !asked_for_full_reports {
                     asked_for_full_reports = true;
                     ask_for_full_reports(device);
@@ -183,12 +238,14 @@ pub fn is_usb_report(report: &[u8]) -> bool {
     report.first() == Some(&0x01) && report.len() >= USB_INPUT_LENGTH
 }
 
-pub fn usb_rumble_report(strength: u8) -> [u8; USB_OUTPUT_LENGTH] {
-    let mut report = [0u8; USB_OUTPUT_LENGTH];
-    report[0] = USB_OUTPUT_REPORT_ID;
-    report[1] = RUMBLE_FLAGS;
-    report[3] = strength;
-    report
+fn transport_of(report: &[u8]) -> Option<Transport> {
+    if is_usb_report(report) {
+        Some(Transport::Usb)
+    } else if report.first() == Some(&BLUETOOTH_REPORT_ID) && report.len() >= BLUETOOTH_INPUT_LENGTH {
+        Some(Transport::Bluetooth)
+    } else {
+        None
+    }
 }
 
 pub fn parse_report(report: &[u8]) -> Option<Buttons> {
@@ -308,11 +365,10 @@ mod tests {
     }
 
     #[test]
-    fn builds_a_usb_rumble_report_for_the_weak_motor() {
-        let report = usb_rumble_report(0x70);
-        assert_eq!(report.len(), 48);
-        assert_eq!(&report[..5], &[0x02, 0x03, 0x00, 0x70, 0x00]);
-        assert!(report[5..].iter().all(|byte| *byte == 0));
+    fn tells_the_connection_from_full_reports_only() {
+        assert_eq!(transport_of(&usb_report(DPAD_NONE, 0)), Some(Transport::Usb));
+        assert_eq!(transport_of(&[0x31; 78]), Some(Transport::Bluetooth));
+        assert_eq!(transport_of(&[0x01, 0x80, 0x80, 0x80, 0x80, 0x08, 0, 0, 0, 0]), None);
     }
 
     #[test]
