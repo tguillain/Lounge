@@ -4,7 +4,7 @@ import { getCurrentWebviewWindow } from "@tauri-apps/api/webviewWindow";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import type { PadAction } from "./input/gamepad-mapping";
 import { previewLibrary } from "./preview-library";
-import type { Game, Session } from "./types";
+import type { Friend, FriendsResult, Game, Session } from "./types";
 
 const runsInTauri = typeof window !== "undefined" && "__TAURI_INTERNALS__" in window;
 
@@ -60,6 +60,44 @@ export const getSession = async (): Promise<Session | null> => {
     return { appId: 0, startedAt: Date.now() - 72 * 60 * 1000, game };
   }
   return invoke<Session | null>("get_session");
+};
+
+const previewFriends: Friend[] = [
+  { steamId: "1", name: "Kaori", avatar: null, presence: "in-game", game: "Rocket League", joinUri: "steam://joinlobby/0/0/1" },
+  { steamId: "2", name: "Mathis_R", avatar: null, presence: "in-game", game: "Counter-Strike 2", joinUri: null },
+  { steamId: "3", name: "Nyx", avatar: null, presence: "online", game: null, joinUri: null },
+  { steamId: "4", name: "Bastien", avatar: null, presence: "away", game: null, joinUri: null },
+];
+
+export const loadFriends = async (): Promise<FriendsResult> => {
+  if (!runsInTauri) {
+    return { status: "ready", friends: previewFriends };
+  }
+  return invoke<FriendsResult>("get_friends");
+};
+
+export const saveSteamApiKey = async (key: string): Promise<void> => {
+  if (runsInTauri) {
+    await invoke("save_steam_api_key", { key });
+  }
+};
+
+export const forgetSteamApiKey = async (): Promise<void> => {
+  if (runsInTauri) {
+    await invoke("forget_steam_api_key");
+  }
+};
+
+export const openSteamApiKeyPage = async (): Promise<void> => {
+  if (runsInTauri) {
+    await invoke("open_steam_api_key_page");
+  }
+};
+
+export const joinFriend = async (friend: Friend): Promise<void> => {
+  if (runsInTauri && friend.joinUri) {
+    await invoke("launch_game", { uri: friend.joinUri });
+  }
 };
 
 export const backToGame = async (): Promise<void> => {

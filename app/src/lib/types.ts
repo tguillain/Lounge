@@ -25,6 +25,23 @@ export type Session = {
   game: Game | null;
 };
 
+export type Presence = "in-game" | "online" | "away";
+
+export type Friend = {
+  steamId: string;
+  name: string;
+  avatar: string | null;
+  presence: Presence;
+  game: string | null;
+  joinUri: string | null;
+};
+
+export type FriendsResult =
+  | { status: "loading" }
+  | { status: "not-configured" }
+  | { status: "ready"; friends: Friend[] }
+  | { status: "failed"; message: string };
+
 export type LibraryState =
   | { status: "loading" }
   | { status: "ready"; games: Game[] }

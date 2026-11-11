@@ -1,24 +1,31 @@
 <script lang="ts">
   import { onMount } from "svelte";
   import { SvelteSet } from "svelte/reactivity";
+  import FriendsPanel from "$lib/components/FriendsPanel.svelte";
   import GameMenu, { type MenuItem } from "$lib/components/GameMenu.svelte";
   import Hints from "$lib/components/Hints.svelte";
   import LaunchOverlay from "$lib/components/LaunchOverlay.svelte";
   import Shelf from "$lib/components/Shelf.svelte";
+  import SteamKeyDialog from "$lib/components/SteamKeyDialog.svelte";
   import {
     backToGame,
+    forgetSteamApiKey,
     getSession,
     imageUrl,
+    joinFriend,
     launchGame,
+    loadFriends,
     loadLibrary,
     onGameSession,
+    openSteamApiKeyPage,
+    saveSteamApiKey,
     setGameHidden,
     toggleFullscreen,
   } from "$lib/api";
   import { clockLabel, greeting, lastPlayedLabel, placeholderArt, sizeLabel, storeLabel } from "$lib/format";
   import { pulse, watchGamepads } from "$lib/input/gamepad";
   import type { InputMode, PadAction } from "$lib/input/gamepad-mapping";
-  import type { Game, LibraryState } from "$lib/types";
+  import type { Friend, FriendsResult, Game, LibraryState } from "$lib/types";
 
   const KEY_ACTIONS: Record<string, PadAction> = {
     ArrowLeft: "left",
@@ -32,6 +39,8 @@
 
   const LAUNCH_OVERLAY_TIMEOUT_MS = 20_000;
   const CLOCK_REFRESH_MS = 15_000;
+  const FRIENDS_REFRESH_MS = 60_000;
+  const VISIBLE_FRIENDS = 5;
 
   let library = $state<LibraryState>({ status: "loading" });
   let selectedIndex = $state(0);
@@ -43,6 +52,10 @@
   let menuOpen = $state(false);
   let menuIndex = $state(0);
   let runningGameId = $state<string | null>(null);
+  let friendsResult = $state<FriendsResult>({ status: "loading" });
+  let focusZone = $state<"shelf" | "friends">("shelf");
+  let friendIndex = $state(0);
+  let keyDialogOpen = $state(false);
   const brokenImages = new SvelteSet<string>();
   let launchTimer: ReturnType<typeof setTimeout> | undefined;
 
@@ -51,6 +64,62 @@
   const games = $derived(showHidden ? allGames : allGames.filter((game) => !game.hidden));
   const selected = $derived<Game | null>(games[selectedIndex] ?? null);
   const selectedIsRunning = $derived(selected !== null && selected.id === runningGameId);
+  const visibleFriends = $derived(friendsResult.status === "ready" ? friendsResult.friends.slice(0, VISIBLE_FRIENDS) : []);
+  const friendsNeedSetup = $derived(friendsResult.status === "not-configured" || friendsResult.status === "failed");
+  const focusedFriend = $derived<Friend | null>(focusZone === "friends" ? (visibleFriends[friendIndex] ?? null) : null);
+
+  const refreshFriends = async () => {
+    try {
+      friendsResult = await loadFriends();
+    } catch (error) {
+      friendsResult = { status: "failed", message: String(error) };
+    }
+    friendIndex = Math.min(friendIndex, Math.max(0, visibleFriends.length - 1));
+  };
+
+  const saveKey = async (key: string) => {
+    await saveSteamApiKey(key);
+    keyDialogOpen = false;
+    friendsResult = { status: "loading" };
+    await refreshFriends();
+  };
+
+  const forgetKey = async () => {
+    await forgetSteamApiKey();
+    keyDialogOpen = false;
+    friendsResult = { status: "not-configured" };
+  };
+
+  const join = async (friend: Friend) => {
+    launchError = null;
+    try {
+      await joinFriend(friend);
+    } catch (error) {
+      launchError = `Couldn't join ${friend.name}: ${error}`;
+    }
+  };
+
+  const canFocusFriends = () => visibleFriends.length > 0 || friendsNeedSetup;
+
+  const runFriendsAction = (action: PadAction) => {
+    if (action === "up") {
+      friendIndex = Math.max(0, friendIndex - 1);
+    } else if (action === "down") {
+      if (friendIndex >= visibleFriends.length - 1) {
+        focusZone = "shelf";
+      } else {
+        friendIndex += 1;
+      }
+    } else if (action === "left" || action === "back") {
+      focusZone = "shelf";
+    } else if (action === "confirm") {
+      if (friendsNeedSetup) {
+        keyDialogOpen = true;
+      } else if (focusedFriend?.joinUri) {
+        join(focusedFriend);
+      }
+    }
+  };
 
   const toggleHidden = async (game: Game) => {
     const hidden = !game.hidden;
@@ -185,6 +254,12 @@
   };
 
   const runAction = (action: PadAction) => {
+    if (keyDialogOpen) {
+      if (action === "back") {
+        keyDialogOpen = false;
+      }
+      return;
+    }
     if (menuOpen) {
       runMenuAction(action);
       return;
@@ -193,6 +268,15 @@
       if (action === "back") {
         closeLaunchOverlay();
       }
+      return;
+    }
+    if (focusZone === "friends") {
+      runFriendsAction(action);
+      return;
+    }
+    if (action === "up" && canFocusFriends()) {
+      focusZone = "friends";
+      friendIndex = 0;
       return;
     }
     if (action === "left" || action === "right") {
@@ -208,6 +292,9 @@
 
   const handleKeydown = (event: KeyboardEvent) => {
     inputMode = "keyboard";
+    if (keyDialogOpen) {
+      return;
+    }
     if (event.key === "F11") {
       event.preventDefault();
       toggleFullscreen();
@@ -234,6 +321,13 @@
       }
     }, CLOCK_REFRESH_MS);
 
+    refreshFriends();
+    const friendsTimer = setInterval(() => {
+      if (document.visibilityState === "visible" && friendsResult.status === "ready") {
+        refreshFriends();
+      }
+    }, FRIENDS_REFRESH_MS);
+
     getSession()
       .then((session) => (runningGameId = session ? `steam:${session.appId}` : null))
       .catch(() => (runningGameId = null));
@@ -251,6 +345,7 @@
 
     return () => {
       clearInterval(clock);
+      clearInterval(friendsTimer);
       clearTimeout(launchTimer);
       stopGamepads();
       stopListening.then((stop) => stop());
@@ -309,6 +404,7 @@
         <button type="button" class="secondary" onclick={refreshLibrary}>Refresh</button>
       </section>
     {:else}
+      <div class="main-row">
       <section class="hero" aria-label="Selected game">
         <div class="title-slot">
           {#key selected.id}
@@ -349,6 +445,16 @@
         {/if}
       </section>
 
+      <FriendsPanel
+        result={friendsResult}
+        focusedIndex={focusZone === "friends" ? friendIndex : null}
+        panelFocused={focusZone === "friends" && friendsNeedSetup}
+        onConnect={() => (keyDialogOpen = true)}
+        onRetry={refreshFriends}
+        onJoin={join}
+      />
+      </div>
+
       <section class="shelf" aria-label="Recently played">
         <h2>Recently played</h2>
         <Shelf
@@ -369,14 +475,31 @@
 
     <Hints
       mode={inputMode}
-      hints={[
-        { action: "navigate", label: "Navigate" },
-        { action: "confirm", label: selectedIsRunning ? "Back to game" : "Play" },
-        { action: "options", label: "Options" },
-        { action: "fullscreen", label: "Full screen" },
-      ]}
+      hints={focusZone === "friends"
+        ? [
+            { action: "navigate", label: "Navigate" },
+            ...(friendsNeedSetup ? [{ action: "confirm" as const, label: "Connect" }] : []),
+            ...(focusedFriend?.joinUri ? [{ action: "confirm" as const, label: "Join" }] : []),
+            { action: "back", label: "Back to games" },
+          ]
+        : [
+            { action: "navigate", label: "Navigate" },
+            { action: "confirm", label: selectedIsRunning ? "Back to game" : "Play" },
+            { action: "options", label: "Options" },
+            { action: "fullscreen", label: "Full screen" },
+          ]}
     />
   </div>
+
+  {#if keyDialogOpen}
+    <SteamKeyDialog
+      connected={friendsResult.status !== "not-configured"}
+      onSave={saveKey}
+      onForget={forgetKey}
+      onOpenKeyPage={openSteamApiKeyPage}
+      onClose={() => (keyDialogOpen = false)}
+    />
+  {/if}
 
   {#if menuOpen && selected}
     <GameMenu
@@ -480,9 +603,18 @@
     color: var(--text-tertiary);
   }
 
-  .hero {
+  .main-row {
     flex: 1;
-    max-width: 640px;
+    min-height: 0;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 48px;
+  }
+
+  .hero {
+    flex: 0 1 640px;
+    min-width: 0;
     display: flex;
     flex-direction: column;
     justify-content: center;

@@ -1,5 +1,6 @@
 mod epic;
 mod focus;
+mod friends;
 mod game;
 mod logo;
 mod pad;
@@ -31,7 +32,30 @@ struct SessionInfo {
     game: Option<Game>,
 }
 
-const ALLOWED_LAUNCH_PREFIXES: [&str; 2] = ["steam://rungameid/", "com.epicgames.launcher://apps/"];
+const ALLOWED_LAUNCH_PREFIXES: [&str; 3] = ["steam://rungameid/", "steam://joinlobby/", "com.epicgames.launcher://apps/"];
+const STEAM_API_KEY_PAGE: &str = "https://steamcommunity.com/dev/apikey";
+
+#[tauri::command]
+async fn get_friends() -> Result<friends::FriendsResult, String> {
+    tauri::async_runtime::spawn_blocking(friends::load).await.map_err(|error| error.to_string())
+}
+
+#[tauri::command]
+async fn save_steam_api_key(key: String) -> Result<(), String> {
+    tauri::async_runtime::spawn_blocking(move || friends::save_key(&key))
+        .await
+        .map_err(|error| error.to_string())?
+}
+
+#[tauri::command]
+fn forget_steam_api_key() -> Result<(), String> {
+    friends::forget_key()
+}
+
+#[tauri::command]
+fn open_steam_api_key_page(app: tauri::AppHandle) -> Result<(), String> {
+    app.opener().open_url(STEAM_API_KEY_PAGE, None::<&str>).map_err(|error| error.to_string())
+}
 
 fn logo_cache_dir(app: &tauri::AppHandle) -> Option<PathBuf> {
     let dir = app.path().app_cache_dir().ok()?.join("logos");
@@ -174,6 +198,10 @@ pub fn run() {
             set_game_hidden,
             launch_game,
             get_session,
+            get_friends,
+            save_steam_api_key,
+            forget_steam_api_key,
+            open_steam_api_key_page,
             back_to_game,
             quick_menu_resume,
             quick_menu_open_lounge,

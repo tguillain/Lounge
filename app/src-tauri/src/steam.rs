@@ -37,6 +37,20 @@ pub fn running_app_id() -> u32 {
     registry_running_app_id().unwrap_or(0)
 }
 
+#[cfg(windows)]
+pub fn active_account_id() -> Option<u32> {
+    steam_registry_key()?
+        .open_subkey("ActiveProcess")
+        .ok()?
+        .get_value::<u32, _>("ActiveUser")
+        .ok()
+}
+
+#[cfg(not(windows))]
+pub fn active_account_id() -> Option<u32> {
+    None
+}
+
 pub fn scan(logo_cache: Option<&Path>) -> Vec<Game> {
     let Some(root) = steam_root() else {
         return Vec::new();
