@@ -145,7 +145,8 @@ const previewPreferences: Preferences = {
   startFullscreen: false,
   vibration: true,
   showFriends: true,
-  version: "0.1.4",
+  sounds: true,
+  version: "0.1.5",
   canUpdate: true,
 };
 

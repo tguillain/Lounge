@@ -2,9 +2,10 @@
   import { onMount } from "svelte";
   import BatteryIndicator from "$lib/components/BatteryIndicator.svelte";
   import Hints from "$lib/components/Hints.svelte";
-  import { getSession, imageUrl, onControllerAction, openLounge, quitGame, resumeGame } from "$lib/api";
+  import { getPreferences, getSession, imageUrl, onControllerAction, openLounge, quitGame, resumeGame } from "$lib/api";
   import { clockLabel, dateLabel, placeholderArt, playTimeLabel } from "$lib/format";
   import type { PadAction } from "$lib/input/gamepad-mapping";
+  import { playSound, type Sound } from "$lib/sounds";
   import type { Session } from "$lib/types";
 
   type Entry = { id: string; label: string; danger?: boolean; run: () => void };
@@ -24,6 +25,7 @@
   let busy = $state(false);
   let error = $state<string | null>(null);
   let headerBroken = $state(false);
+  let soundsOn = true;
 
   const gameName = $derived(session?.game?.name ?? "your game");
   const headerUrl = $derived(headerBroken ? null : imageUrl(session?.game?.images.header ?? null));
@@ -66,7 +68,13 @@
         ],
   );
 
+  const SOUNDS: Partial<Record<PadAction, Sound>> = { up: "move", down: "move", confirm: "select", back: "back" };
+
   const handleAction = (action: PadAction) => {
+    const sound = SOUNDS[action];
+    if (soundsOn && sound && !busy) {
+      playSound(sound);
+    }
     if (action === "up" || action === "down") {
       const step = action === "down" ? 1 : -1;
       focusedIndex = (focusedIndex + step + entries.length) % entries.length;
@@ -93,6 +101,9 @@
     getSession()
       .then((loaded) => (session = loaded))
       .catch((failure) => (error = String(failure)));
+    getPreferences()
+      .then((preferences) => (soundsOn = preferences.sounds))
+      .catch(() => {});
 
     const clock = setInterval(() => (now = new Date()), CLOCK_REFRESH_MS);
     const stopListening = onControllerAction(handleAction);

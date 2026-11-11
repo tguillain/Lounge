@@ -42,6 +42,7 @@ struct Preferences {
     start_fullscreen: bool,
     vibration: bool,
     show_friends: bool,
+    sounds: bool,
     version: String,
     can_update: bool,
 }
@@ -113,6 +114,7 @@ fn get_preferences(app: tauri::AppHandle) -> Result<Preferences, String> {
         start_fullscreen: saved.start_fullscreen,
         vibration: saved.vibration,
         show_friends: saved.show_friends,
+        sounds: saved.sounds,
         version: app.package_info().version.to_string(),
         can_update: update::AVAILABLE,
     })

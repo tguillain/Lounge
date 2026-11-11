@@ -54,6 +54,7 @@ export type Preferences = {
   startFullscreen: boolean;
   vibration: boolean;
   showFriends: boolean;
+  sounds: boolean;
   version: string;
   canUpdate: boolean;
 };
@@ -70,4 +71,4 @@ export type UpdateStatus =
   | { state: "installing"; version: string; percent: number | null }
   | { state: "failed"; message: string };
 
-export type Toggle = "startFullscreen" | "vibration" | "showFriends";
+export type Toggle = "startFullscreen" | "sounds" | "vibration" | "showFriends";

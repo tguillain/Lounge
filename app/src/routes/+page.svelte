@@ -48,6 +48,7 @@
     type LibrarySort,
   } from "$lib/library";
   import { settingsRows, type SettingsRow, type SteamKeyState } from "$lib/settings";
+  import { playSound, soundFor } from "$lib/sounds";
   import type { Friend, FriendsResult, Game, LibraryState, Preferences, Toggle, UpdateStatus } from "$lib/types";
 
   type View = "home" | "library" | "settings";
@@ -517,6 +518,30 @@
     }
   };
 
+  const openLayers = () => (view === "settings" ? 1 : 0) + (menuGame ? 1 : 0) + (keyDialogOpen ? 1 : 0);
+
+  const focusKey = () =>
+    [view, homeZone, selectedIndex, friendIndex, libraryZone, libraryIndex, controlIndex, libraryFilter, librarySort, settingsIndex, menuIndex].join("|");
+
+  const act = (action: PadAction) => {
+    const layersBefore = openLayers();
+    const focusBefore = focusKey();
+    const launchingBefore = launching;
+    runAction(action);
+    if (preferences?.sounds === false) {
+      return;
+    }
+    const sound = soundFor(action, {
+      layersBefore,
+      layersAfter: openLayers(),
+      focusMoved: focusKey() !== focusBefore,
+      launched: launching !== null && launching !== launchingBefore,
+    });
+    if (sound) {
+      playSound(sound);
+    }
+  };
+
   const handleKeydown = (event: KeyboardEvent) => {
     inputMode = "keyboard";
     if (keyDialogOpen) {
@@ -530,7 +555,7 @@
     const action = KEY_ACTIONS[event.key];
     if (action) {
       event.preventDefault();
-      runAction(action);
+      act(action);
     }
   };
 
@@ -582,7 +607,7 @@
 
     const stopGamepads = watchGamepads((action, family) => {
       inputMode = family;
-      runAction(action);
+      act(action);
     });
 
     const clock = setInterval(() => {

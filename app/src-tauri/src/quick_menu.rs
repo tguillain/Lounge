@@ -42,6 +42,7 @@ fn open(app: &AppHandle) {
     });
     let built = WebviewWindowBuilder::new(app, LABEL, WebviewUrl::App("quick-menu".into()))
         .title("Lounge")
+        .additional_browser_args(crate::window::BROWSER_ARGS)
         .decorations(false)
         .always_on_top(true)
         .skip_taskbar(true)

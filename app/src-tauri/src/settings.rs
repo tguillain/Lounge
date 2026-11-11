@@ -16,6 +16,8 @@ pub struct Settings {
     pub vibration: bool,
     #[serde(default = "enabled")]
     pub show_friends: bool,
+    #[serde(default = "enabled")]
+    pub sounds: bool,
 }
 
 impl Default for Settings {
@@ -25,6 +27,7 @@ impl Default for Settings {
             start_fullscreen: false,
             vibration: true,
             show_friends: true,
+            sounds: true,
         }
     }
 }
@@ -35,6 +38,7 @@ pub enum Toggle {
     StartFullscreen,
     Vibration,
     ShowFriends,
+    Sounds,
 }
 
 fn enabled() -> bool {
@@ -79,6 +83,7 @@ pub fn set_toggle(path: &Path, toggle: Toggle, enabled: bool) -> Result<(), Stri
         Toggle::StartFullscreen => &mut settings.start_fullscreen,
         Toggle::Vibration => &mut settings.vibration,
         Toggle::ShowFriends => &mut settings.show_friends,
+        Toggle::Sounds => &mut settings.sounds,
     };
     *field = enabled;
     save(path, &settings)
@@ -114,7 +119,7 @@ mod tests {
         let settings: Settings = serde_json::from_str(r#"{ "hiddenGames": ["steam:730"] }"#).unwrap();
         assert!(settings.hidden_games.contains("steam:730"));
         assert!(!settings.start_fullscreen);
-        assert!(settings.vibration && settings.show_friends);
+        assert!(settings.vibration && settings.show_friends && settings.sounds);
     }
 
     #[test]

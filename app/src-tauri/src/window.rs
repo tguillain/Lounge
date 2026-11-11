@@ -5,6 +5,8 @@ use tauri::{AppHandle, Manager, WebviewWindow, WebviewWindowBuilder};
 use crate::settings;
 
 pub const MAIN_LABEL: &str = "main";
+pub const BROWSER_ARGS: &str =
+    "--disable-features=msWebOOUI,msPdfOOUI,msSmartScreenProtection --autoplay-policy=no-user-gesture-required";
 
 #[derive(Default)]
 pub struct WindowState {
@@ -27,7 +29,10 @@ pub fn build_main(app: &AppHandle) -> tauri::Result<WebviewWindow> {
         .cloned()
         .ok_or(tauri::Error::WindowNotFound)?;
     let fullscreen = settings::path(app).map(|path| settings::load(&path).start_fullscreen).unwrap_or(false);
-    let window = WebviewWindowBuilder::from_config(app, &config)?.fullscreen(fullscreen).build()?;
+    let window = WebviewWindowBuilder::from_config(app, &config)?
+        .fullscreen(fullscreen)
+        .additional_browser_args(BROWSER_ARGS)
+        .build()?;
     if let Some(icon) = app.default_window_icon() {
         window.set_icon(icon.clone())?;
     }
