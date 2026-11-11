@@ -47,3 +47,9 @@ export type LibraryState =
   | { status: "loading" }
   | { status: "ready"; games: Game[] }
   | { status: "error"; message: string };
+
+export type Preferences = {
+  startWithWindows: boolean;
+  startWithWindowsAvailable: boolean;
+  startFullscreen: boolean;
+};

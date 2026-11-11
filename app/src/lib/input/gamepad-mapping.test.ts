@@ -26,6 +26,11 @@ describe("buttonAction", () => {
     expect(buttonAction(16)).toBe("menu");
   });
 
+  it("opens settings with the Options / Menu button and options with triangle / Y", () => {
+    expect(buttonAction(9)).toBe("menu");
+    expect(buttonAction(3)).toBe("options");
+  });
+
   it("switches tabs with the shoulder buttons", () => {
     expect(buttonAction(4)).toBe("previousTab");
     expect(buttonAction(5)).toBe("nextTab");

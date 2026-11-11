@@ -22,7 +22,7 @@
       confirm: { kind: "shape", path: CROSS },
       back: { kind: "shape", path: CIRCLE },
       options: { kind: "shape", path: TRIANGLE },
-      menu: { kind: "key", text: "PS", round: true },
+      menu: { kind: "key", text: "Options" },
       tabs: { kind: "key", text: "L1 R1" },
     },
     xbox: {

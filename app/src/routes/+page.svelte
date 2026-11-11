@@ -12,6 +12,7 @@
   import {
     backToGame,
     forgetSteamApiKey,
+    getPreferences,
     getSession,
     imageUrl,
     joinFriend,
@@ -22,6 +23,8 @@
     openSteamApiKeyPage,
     saveSteamApiKey,
     setGameHidden,
+    setStartFullscreen,
+    setStartWithWindows,
     toggleFullscreen,
   } from "$lib/api";
   import { clockLabel, greeting, placeholderArt } from "$lib/format";
@@ -37,7 +40,7 @@
     type LibraryFilter,
     type LibrarySort,
   } from "$lib/library";
-  import type { Friend, FriendsResult, Game, LibraryState } from "$lib/types";
+  import type { Friend, FriendsResult, Game, LibraryState, Preferences } from "$lib/types";
 
   type View = "home" | "library";
 
@@ -53,7 +56,10 @@
     Q: "previousTab",
     e: "nextTab",
     E: "nextTab",
+    Tab: "menu",
   };
+
+  const SETTINGS_NOTE = "These take effect the next time Lounge starts.";
 
   const LAUNCH_OVERLAY_TIMEOUT_MS = 20_000;
   const CLOCK_REFRESH_MS = 15_000;
@@ -85,6 +91,9 @@
 
   let menuGame = $state<Game | null>(null);
   let menuIndex = $state(0);
+  let settingsOpen = $state(false);
+  let preferences = $state<Preferences | null>(null);
+  let settingsError = $state<string | null>(null);
 
   const allGames = $derived(library.status === "ready" ? library.games : []);
   const homeGames = $derived(allGames.filter((game) => !game.hidden));
@@ -205,6 +214,7 @@
 
   const closeMenu = () => {
     menuGame = null;
+    settingsOpen = false;
   };
 
   const openMenu = (game: Game | null) => {
@@ -214,7 +224,59 @@
     }
   };
 
-  const menuItems = $derived.by<MenuItem[]>(() => {
+  const openSettings = async () => {
+    menuIndex = 0;
+    settingsError = null;
+    settingsOpen = true;
+    try {
+      preferences = await getPreferences();
+    } catch (error) {
+      settingsError = `Couldn't read your settings: ${error}`;
+    }
+  };
+
+  const updatePreference = async (key: "startWithWindows" | "startFullscreen", save: (enabled: boolean) => Promise<void>) => {
+    if (!preferences) {
+      return;
+    }
+    const enabled = !preferences[key];
+    preferences = { ...preferences, [key]: enabled };
+    settingsError = null;
+    try {
+      await save(enabled);
+    } catch (error) {
+      preferences = { ...preferences, [key]: !enabled };
+      settingsError = `Couldn't save this setting: ${error}`;
+    }
+  };
+
+  const onOff = (enabled: boolean) => (enabled ? "On" : "Off");
+
+  const settingsItems = $derived.by<MenuItem[]>(() => {
+    const current = preferences;
+    const startupValue = !current ? "…" : current.startWithWindowsAvailable ? onOff(current.startWithWindows) : "Installed app only";
+    return [
+      {
+        id: "start-with-windows",
+        label: "Start with Windows",
+        value: startupValue,
+        run: () => {
+          if (current?.startWithWindowsAvailable) {
+            updatePreference("startWithWindows", setStartWithWindows);
+          }
+        },
+      },
+      {
+        id: "start-fullscreen",
+        label: "Open in full screen",
+        value: current ? onOff(current.startFullscreen) : "…",
+        run: () => updatePreference("startFullscreen", setStartFullscreen),
+      },
+      { id: "close", label: "Close", run: closeMenu },
+    ];
+  });
+
+  const gameMenuItems = $derived.by<MenuItem[]>(() => {
     const game = menuGame;
     if (!game) {
       return [];
@@ -231,6 +293,9 @@
       { id: "close", label: "Close", run: closeMenu },
     ];
   });
+
+  const menuOpen = $derived(menuGame !== null || settingsOpen);
+  const menuItems = $derived(menuGame ? gameMenuItems : settingsOpen ? settingsItems : []);
 
   const switchView = (target: View) => {
     if (view === target) {
@@ -267,7 +332,7 @@
       feedback();
     } else if (action === "confirm") {
       menuItems[menuIndex]?.run();
-    } else if (action === "back" || action === "options") {
+    } else if (action === "back" || action === "options" || action === "menu") {
       closeMenu();
     }
   };
@@ -354,7 +419,7 @@
       }
       return;
     }
-    if (menuGame) {
+    if (menuOpen) {
       runMenuAction(action);
       return;
     }
@@ -364,7 +429,9 @@
       }
       return;
     }
-    if (action === "previousTab" || action === "nextTab") {
+    if (action === "menu") {
+      openSettings();
+    } else if (action === "previousTab" || action === "nextTab") {
       switchView(action === "nextTab" ? "library" : "home");
     } else if (view === "home") {
       runHomeAction(action);
@@ -400,6 +467,7 @@
         },
         { action: "options", label: "Options" },
         { action: "tabs", label: "Home" },
+        { action: "menu", label: "Settings" },
       ];
     }
     if (homeZone === "friends") {
@@ -415,6 +483,7 @@
       { action: "confirm", label: selectedIsRunning ? "Back to game" : "Play" },
       { action: "options", label: "Options" },
       { action: "tabs", label: "Library" },
+      { action: "menu", label: "Settings" },
       { action: "fullscreen", label: "Full screen" },
     ];
   });
@@ -497,7 +566,15 @@
           Library
         </button>
       </nav>
-      <span class="clock">{clockLabel(now)}</span>
+      <div class="top-right">
+        <span class="clock">{clockLabel(now)}</span>
+        <button type="button" class="settings-button" aria-label="Settings" onclick={openSettings}>
+          <svg aria-hidden="true" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6z" />
+            <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z" />
+          </svg>
+        </button>
+      </div>
     </header>
 
     {#if library.status === "loading"}
@@ -600,12 +677,13 @@
     />
   {/if}
 
-  {#if menuGame}
+  {#if menuOpen}
     <GameMenu
-      title={menuGame.name}
+      title={menuGame ? menuGame.name : "Settings"}
       items={menuItems}
       focusedIndex={menuIndex}
       mode={inputMode}
+      note={menuGame ? null : (settingsError ?? SETTINGS_NOTE)}
       onFocus={(index) => (menuIndex = index)}
       onClose={closeMenu}
     />
@@ -684,9 +762,35 @@
     font-weight: 600;
   }
 
-  .clock {
+  .top-right {
     justify-self: end;
+    display: flex;
+    align-items: center;
+    gap: 16px;
+  }
+
+  .clock {
     font-variant-numeric: tabular-nums;
+  }
+
+  .settings-button {
+    width: 40px;
+    height: 40px;
+    border: 0;
+    border-radius: 999px;
+    background: transparent;
+    display: grid;
+    place-items: center;
+    color: var(--text-secondary);
+    cursor: pointer;
+    transition:
+      background 0.15s ease,
+      color 0.15s ease;
+  }
+
+  .settings-button:hover {
+    background: var(--glass);
+    color: var(--text);
   }
 
   nav {

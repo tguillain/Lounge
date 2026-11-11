@@ -1,6 +1,8 @@
 use std::sync::atomic::{AtomicBool, Ordering};
 
-use tauri::{AppHandle, Manager, WebviewWindowBuilder};
+use tauri::{AppHandle, Manager, WebviewWindow, WebviewWindowBuilder};
+
+use crate::settings;
 
 pub const MAIN_LABEL: &str = "main";
 
@@ -13,6 +15,19 @@ impl WindowState {
     pub fn closed_for_game(&self) -> bool {
         self.closed_for_game.load(Ordering::SeqCst)
     }
+}
+
+pub fn build_main(app: &AppHandle) -> tauri::Result<WebviewWindow> {
+    let config = app
+        .config()
+        .app
+        .windows
+        .iter()
+        .find(|window| window.label == MAIN_LABEL)
+        .cloned()
+        .ok_or(tauri::Error::WindowNotFound)?;
+    let fullscreen = settings::path(app).map(|path| settings::load(&path).start_fullscreen).unwrap_or(false);
+    WebviewWindowBuilder::from_config(app, &config)?.fullscreen(fullscreen).build()
 }
 
 pub fn close_for_game(app: &AppHandle) {
@@ -32,10 +47,7 @@ pub fn open_main(app: &AppHandle) {
     }
     let app = app.clone();
     std::thread::spawn(move || {
-        let Some(config) = app.config().app.windows.iter().find(|window| window.label == MAIN_LABEL).cloned() else {
-            return;
-        };
-        if let Ok(window) = WebviewWindowBuilder::from_config(&app, &config).and_then(|builder| builder.build()) {
+        if let Ok(window) = build_main(&app) {
             let _ = window.set_focus();
         }
         app.state::<WindowState>().closed_for_game.store(false, Ordering::SeqCst);

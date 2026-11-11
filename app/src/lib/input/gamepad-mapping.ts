@@ -20,7 +20,7 @@ const STANDARD_BUTTON_ACTIONS: Record<number, PadAction> = {
   3: "options",
   4: "previousTab",
   5: "nextTab",
-  9: "options",
+  9: "menu",
   12: "up",
   13: "down",
   14: "left",

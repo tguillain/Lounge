@@ -1,14 +1,24 @@
 use std::collections::BTreeSet;
 use std::fs;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 
 use serde::{Deserialize, Serialize};
+use tauri::{AppHandle, Manager};
 
 #[derive(Debug, Default, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Settings {
     #[serde(default)]
     pub hidden_games: BTreeSet<String>,
+    #[serde(default)]
+    pub start_fullscreen: bool,
+}
+
+pub fn path(app: &AppHandle) -> Result<PathBuf, String> {
+    app.path()
+        .app_config_dir()
+        .map(|dir| dir.join("settings.json"))
+        .map_err(|error| error.to_string())
 }
 
 pub fn load(path: &Path) -> Settings {
@@ -33,6 +43,12 @@ pub fn set_hidden(path: &Path, game_id: &str, hidden: bool) -> Result<(), String
     } else {
         settings.hidden_games.remove(game_id);
     }
+    save(path, &settings)
+}
+
+pub fn set_start_fullscreen(path: &Path, enabled: bool) -> Result<(), String> {
+    let mut settings = load(path);
+    settings.start_fullscreen = enabled;
     save(path, &settings)
 }
 
@@ -65,5 +81,17 @@ mod tests {
     fn tolerates_a_file_without_the_hidden_list() {
         let settings: Settings = serde_json::from_str("{}").unwrap();
         assert!(settings.hidden_games.is_empty());
+        assert!(!settings.start_fullscreen);
+    }
+
+    #[test]
+    fn keeps_hidden_games_when_turning_full_screen_on() {
+        let path = temp_settings_path("fullscreen");
+        set_hidden(&path, "steam:730", true).unwrap();
+        set_start_fullscreen(&path, true).unwrap();
+        let settings = load(&path);
+        assert!(settings.start_fullscreen);
+        assert!(settings.hidden_games.contains("steam:730"));
+        let _ = fs::remove_dir_all(path.parent().unwrap());
     }
 }

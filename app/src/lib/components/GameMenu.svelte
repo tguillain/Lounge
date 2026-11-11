@@ -1,5 +1,5 @@
 <script lang="ts" module>
-  export type MenuItem = { id: string; label: string; run: () => void };
+  export type MenuItem = { id: string; label: string; value?: string; run: () => void };
 </script>
 
 <script lang="ts">
@@ -11,15 +11,16 @@
     items: MenuItem[];
     focusedIndex: number;
     mode: InputMode;
+    note?: string | null;
     onFocus: (index: number) => void;
     onClose: () => void;
   };
 
-  let { title, items, focusedIndex, mode, onFocus, onClose }: Props = $props();
+  let { title, items, focusedIndex, mode, note = null, onFocus, onClose }: Props = $props();
 </script>
 
 <div class="backdrop" role="presentation" onclick={onClose}></div>
-<div class="sheet" role="menu" aria-label={`Options — ${title}`}>
+<div class="sheet" role="menu" aria-label={title}>
   <p class="title">{title}</p>
   {#each items as item, index (item.id)}
     <button
@@ -29,9 +30,15 @@
       onpointerenter={() => onFocus(index)}
       onclick={item.run}
     >
-      {item.label}
+      <span>{item.label}</span>
+      {#if item.value}
+        <span class="value">{item.value}</span>
+      {/if}
     </button>
   {/each}
+  {#if note}
+    <p class="note">{note}</p>
+  {/if}
   <div class="hints">
     <Hints
       {mode}
@@ -89,6 +96,10 @@
     font-size: 16px;
     font-weight: 500;
     text-align: left;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
     cursor: pointer;
     transition:
       background 0.15s ease,
@@ -99,6 +110,22 @@
     background: var(--text);
     color: var(--bg);
     font-weight: 600;
+  }
+
+  .value {
+    font-size: 15px;
+    color: var(--text-tertiary);
+  }
+
+  button.focused .value {
+    color: rgba(10, 10, 12, 0.6);
+  }
+
+  .note {
+    margin: 8px 4px 0;
+    font-size: 13px;
+    line-height: 1.4;
+    color: var(--text-tertiary);
   }
 
   .hints {

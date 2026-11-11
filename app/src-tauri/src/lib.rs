@@ -1,3 +1,4 @@
+mod autostart;
 mod epic;
 mod focus;
 mod friends;
@@ -32,6 +33,14 @@ struct SessionInfo {
     game: Option<Game>,
 }
 
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+struct Preferences {
+    start_with_windows: bool,
+    start_with_windows_available: bool,
+    start_fullscreen: bool,
+}
+
 const ALLOWED_LAUNCH_PREFIXES: [&str; 3] = ["steam://rungameid/", "steam://joinlobby/", "com.epicgames.launcher://apps/"];
 const STEAM_API_KEY_PAGE: &str = "https://steamcommunity.com/dev/apikey";
 
@@ -63,17 +72,29 @@ fn logo_cache_dir(app: &tauri::AppHandle) -> Option<PathBuf> {
     Some(dir)
 }
 
-fn settings_path(app: &tauri::AppHandle) -> Result<PathBuf, String> {
-    app.path()
-        .app_config_dir()
-        .map(|dir| dir.join("settings.json"))
-        .map_err(|error| error.to_string())
+#[tauri::command]
+fn get_preferences(app: tauri::AppHandle) -> Result<Preferences, String> {
+    Ok(Preferences {
+        start_with_windows: autostart::is_enabled(),
+        start_with_windows_available: autostart::AVAILABLE,
+        start_fullscreen: settings::load(&settings::path(&app)?).start_fullscreen,
+    })
+}
+
+#[tauri::command]
+fn set_start_with_windows(enabled: bool) -> Result<(), String> {
+    autostart::set_enabled(enabled)
+}
+
+#[tauri::command]
+fn set_start_fullscreen(app: tauri::AppHandle, enabled: bool) -> Result<(), String> {
+    settings::set_start_fullscreen(&settings::path(&app)?, enabled)
 }
 
 #[tauri::command]
 async fn get_library(app: tauri::AppHandle) -> Result<Vec<Game>, String> {
     let logo_cache = logo_cache_dir(&app);
-    let hidden = settings::load(&settings_path(&app)?).hidden_games;
+    let hidden = settings::load(&settings::path(&app)?).hidden_games;
     tauri::async_runtime::spawn_blocking(move || {
         let mut games: Vec<Game> = steam::scan(logo_cache.as_deref()).into_iter().chain(epic::scan()).collect();
         for game in &mut games {
@@ -88,7 +109,7 @@ async fn get_library(app: tauri::AppHandle) -> Result<Vec<Game>, String> {
 
 #[tauri::command]
 fn set_game_hidden(app: tauri::AppHandle, game_id: String, hidden: bool) -> Result<(), String> {
-    settings::set_hidden(&settings_path(&app)?, &game_id, hidden)
+    settings::set_hidden(&settings::path(&app)?, &game_id, hidden)
 }
 
 #[tauri::command]
@@ -188,6 +209,7 @@ pub fn run() {
             if let Some(logos) = logo_cache_dir(app.handle()) {
                 let _ = scope.allow_directory(logos, false);
             }
+            window::build_main(app.handle())?;
             build_tray(app)?;
             watcher::spawn(app.handle().clone());
             pad::spawn(app.handle().clone());
@@ -196,6 +218,9 @@ pub fn run() {
         .invoke_handler(tauri::generate_handler![
             get_library,
             set_game_hidden,
+            get_preferences,
+            set_start_with_windows,
+            set_start_fullscreen,
             launch_game,
             get_session,
             get_friends,
