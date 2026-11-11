@@ -1,5 +1,6 @@
 <script lang="ts">
   import { imageUrl } from "$lib/api";
+  import DownloadProgress from "./DownloadProgress.svelte";
   import { placeholderArt } from "$lib/format";
   import type { Game } from "$lib/types";
 
@@ -45,6 +46,8 @@
   {/if}
   {#if running}
     <span class="badge live"><span class="live-dot"></span>Now playing</span>
+  {:else if game.download}
+    <DownloadProgress download={game.download} />
   {:else if game.hidden}
     <span class="badge">Hidden</span>
   {/if}

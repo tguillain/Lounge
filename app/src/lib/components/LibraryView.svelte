@@ -1,6 +1,8 @@
 <script lang="ts">
   import { imageUrl } from "$lib/api";
+  import { downloadLabel } from "$lib/downloads";
   import { placeholderArt } from "$lib/format";
+  import DownloadProgress from "./DownloadProgress.svelte";
   import { SORT_LABELS, sortDetail, type FilterOption, type LibraryFilter, type LibrarySort } from "$lib/library";
   import type { Game } from "$lib/types";
 
@@ -51,8 +53,12 @@
     return url && !isBroken(url) ? url : null;
   };
 
-  const detail = (game: Game): string =>
-    game.id === runningGameId ? "Now playing" : sortDetail(game, sort, now.getTime() / 1000);
+  const detail = (game: Game): string => {
+    if (game.id === runningGameId) {
+      return "Now playing";
+    }
+    return game.download ? downloadLabel(game.download) : sortDetail(game, sort, now.getTime() / 1000);
+  };
 
   const handleClick = (game: Game, index: number) => (index === focusedIndex ? onActivate(game) : onFocusGame(index));
 
@@ -126,6 +132,8 @@
               {/if}
               {#if game.id === runningGameId}
                 <span class="badge"><span class="live-dot"></span>Now playing</span>
+              {:else if game.download}
+                <DownloadProgress download={game.download} />
               {/if}
             </span>
             <span class="name">{game.name}</span>

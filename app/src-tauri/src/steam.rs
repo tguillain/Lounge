@@ -1,11 +1,28 @@
-use std::collections::{HashMap, HashSet};
+use std::collections::{BTreeMap, HashMap, HashSet};
 use std::fs;
 use std::path::{Path, PathBuf};
 
-use crate::game::{Game, GameImages, Store};
+use crate::game::{Download, DownloadKind, DownloadState, Game, GameImages, Store};
 use crate::{logo, vdf};
 
+const UPDATE_REQUIRED_FLAG: u32 = 2;
 const FULLY_INSTALLED_FLAG: u32 = 4;
+const UPDATE_RUNNING_FLAG: u32 = 256;
+const UPDATE_PAUSED_FLAG: u32 = 512;
+const UPDATE_STARTED_FLAG: u32 = 1024;
+const VALIDATING_FLAG: u32 = 1 << 17;
+const ADDING_FILES_FLAG: u32 = 1 << 18;
+const PREALLOCATING_FLAG: u32 = 1 << 19;
+const DOWNLOADING_FLAG: u32 = 1 << 20;
+const STAGING_FLAG: u32 = 1 << 21;
+const COMMITTING_FLAG: u32 = 1 << 22;
+const WORKING_FLAGS: u32 = UPDATE_RUNNING_FLAG
+    | VALIDATING_FLAG
+    | ADDING_FILES_FLAG
+    | PREALLOCATING_FLAG
+    | DOWNLOADING_FLAG
+    | STAGING_FLAG
+    | COMMITTING_FLAG;
 const EXCLUDED_APP_IDS: [&str; 1] = ["228980"];
 const CDN_BASE: &str = "https://cdn.cloudflare.steamstatic.com/steam/apps";
 
@@ -17,6 +34,7 @@ pub struct Manifest {
     pub installed: bool,
     pub last_played: u64,
     pub size_on_disk: u64,
+    pub download: Option<Download>,
 }
 
 pub fn steam_root() -> Option<PathBuf> {
@@ -61,12 +79,25 @@ pub fn scan(logo_cache: Option<&Path>) -> Vec<Game> {
     library_folders(&root)
         .iter()
         .flat_map(|library| read_manifests(&library.join("steamapps")))
-        .filter(|manifest| manifest.installed && !EXCLUDED_APP_IDS.contains(&manifest.app_id.as_str()))
+        .filter(|manifest| {
+            (manifest.installed || manifest.download.is_some()) && !EXCLUDED_APP_IDS.contains(&manifest.app_id.as_str())
+        })
         .filter(|manifest| seen_app_ids.insert(manifest.app_id.clone()))
         .map(|manifest| {
             let play_time = play_times.as_ref().map(|times| times.get(&manifest.app_id).copied().unwrap_or(0));
             to_game(manifest, &cache, logo_cache, play_time)
         })
+        .collect()
+}
+
+pub fn downloads() -> BTreeMap<String, Download> {
+    let Some(root) = steam_root() else {
+        return BTreeMap::new();
+    };
+    library_folders(&root)
+        .iter()
+        .flat_map(|library| read_manifests(&library.join("steamapps")))
+        .filter_map(|manifest| Some((format!("steam:{}", manifest.app_id), manifest.download?)))
         .collect()
 }
 
@@ -96,6 +127,28 @@ pub fn parse_manifest(content: &str) -> Option<Manifest> {
         installed: flags & FULLY_INSTALLED_FLAG != 0,
         last_played: state.text("LastPlayed").and_then(|v| v.parse().ok()).unwrap_or(0),
         size_on_disk: state.text("SizeOnDisk").and_then(|v| v.parse().ok()).unwrap_or(0),
+        download: download_of(flags, state),
+    })
+}
+
+fn download_of(flags: u32, state: &vdf::Vdf) -> Option<Download> {
+    let bytes = |key: &str| state.text(key).and_then(|v| v.parse::<u64>().ok()).unwrap_or(0);
+    let state_now = if flags & UPDATE_PAUSED_FLAG != 0 {
+        DownloadState::Paused
+    } else if flags & WORKING_FLAGS != 0 {
+        DownloadState::Downloading
+    } else if flags & FULLY_INSTALLED_FLAG == 0 && flags & (UPDATE_REQUIRED_FLAG | UPDATE_STARTED_FLAG) != 0 {
+        DownloadState::Queued
+    } else {
+        return None;
+    };
+    let has_installed_files = state.get("InstalledDepots").is_some_and(|depots| !depots.entries().is_empty());
+    let total = bytes("BytesToDownload") + bytes("BytesToStage");
+    let done = bytes("BytesDownloaded") + bytes("BytesStaged");
+    Some(Download {
+        kind: if has_installed_files { DownloadKind::Update } else { DownloadKind::Install },
+        state: state_now,
+        percent: (total > 0).then(|| (done.min(total) * 100 / total).min(99) as u8),
     })
 }
 
@@ -210,6 +263,7 @@ fn to_game(manifest: Manifest, cache: &Path, logo_cache: Option<&Path>, play_tim
         size_on_disk: manifest.size_on_disk,
         play_time,
         hidden: false,
+        download: manifest.download,
     }
 }
 
@@ -285,6 +339,7 @@ mod tests {
                 installed: true,
                 last_played: 1_762_800_000,
                 size_on_disk: 21_474_836_480,
+                download: None,
             }
         );
     }
@@ -293,6 +348,49 @@ mod tests {
     fn flags_an_update_in_progress_as_not_installed() {
         let manifest = parse_manifest(r#""AppState" { "appid" "1" "name" "X" "StateFlags" "1026" }"#).unwrap();
         assert!(!manifest.installed);
+    }
+
+    #[test]
+    fn reads_the_progress_of_a_running_update() {
+        let manifest = parse_manifest(
+            r#""AppState" {
+                "appid" "730" "name" "Counter-Strike 2" "StateFlags" "1282"
+                "BytesToDownload" "400" "BytesDownloaded" "100" "BytesToStage" "600" "BytesStaged" "150"
+                "InstalledDepots" { "731" { "manifest" "1" } }
+            }"#,
+        )
+        .unwrap();
+        assert_eq!(
+            manifest.download,
+            Some(Download { kind: DownloadKind::Update, state: DownloadState::Downloading, percent: Some(25) })
+        );
+    }
+
+    #[test]
+    fn tells_a_fresh_install_from_an_update() {
+        let manifest = parse_manifest(
+            r#""AppState" { "appid" "1" "name" "X" "StateFlags" "1026" "BytesToDownload" "10" "BytesDownloaded" "0" }"#,
+        )
+        .unwrap();
+        let download = manifest.download.unwrap();
+        assert_eq!(download.kind, DownloadKind::Install);
+        assert_eq!(download.state, DownloadState::Queued);
+        assert_eq!(download.percent, Some(0));
+    }
+
+    #[test]
+    fn reads_a_paused_download() {
+        let manifest = parse_manifest(r#""AppState" { "appid" "1" "name" "X" "StateFlags" "1542" }"#).unwrap();
+        assert_eq!(manifest.download.map(|download| download.state), Some(DownloadState::Paused));
+        assert_eq!(manifest.download.and_then(|download| download.percent), None);
+    }
+
+    #[test]
+    fn ignores_finished_downloads_and_scheduled_updates_of_installed_games() {
+        let finished = r#""AppState" { "appid" "1" "name" "X" "StateFlags" "4" "BytesToDownload" "10" "BytesDownloaded" "10" }"#;
+        assert_eq!(parse_manifest(finished).unwrap().download, None);
+        let scheduled = r#""AppState" { "appid" "1" "name" "X" "StateFlags" "6" }"#;
+        assert_eq!(parse_manifest(scheduled).unwrap().download, None);
     }
 
     #[test]

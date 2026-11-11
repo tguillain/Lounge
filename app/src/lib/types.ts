@@ -8,6 +8,12 @@ export type GameImages = {
   cover: string | null;
 };
 
+export type Download = {
+  kind: "install" | "update";
+  state: "downloading" | "paused" | "queued";
+  percent: number | null;
+};
+
 export type Game = {
   id: string;
   store: Store;
@@ -18,6 +24,7 @@ export type Game = {
   launchUri: string;
   images: GameImages;
   hidden: boolean;
+  download: Download | null;
 };
 
 export type Session = {

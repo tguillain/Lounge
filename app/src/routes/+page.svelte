@@ -24,6 +24,7 @@
     loadFriends,
     loadLibrary,
     onGameSession,
+    onSteamDownloads,
     onUpdateProgress,
     openReleasesPage,
     openSteamApiKeyPage,
@@ -49,6 +50,7 @@
   } from "$lib/library";
   import { settingsRows, type SettingsRow, type SteamKeyState } from "$lib/settings";
   import { playSound, soundFor } from "$lib/sounds";
+  import { applyDownloads } from "$lib/downloads";
   import type { Friend, FriendsResult, Game, LibraryState, Preferences, Toggle, UpdateStatus } from "$lib/types";
 
   type View = "home" | "library" | "settings";
@@ -142,9 +144,10 @@
 
   const refreshLibrary = async () => {
     try {
+      const selectedId = selected?.id;
       const loaded = await loadLibrary();
       library = { status: "ready", games: loaded };
-      selectedIndex = 0;
+      selectedIndex = Math.max(0, homeGames.findIndex((game) => game.id === selectedId));
       libraryIndex = Math.min(libraryIndex, Math.max(0, libraryGames.length - 1));
     } catch (error) {
       library = { status: "error", message: String(error) };
@@ -628,6 +631,17 @@
       }
     }, UPDATE_CHECK_MS);
 
+    const stopDownloads = onSteamDownloads((downloads) => {
+      if (library.status !== "ready") {
+        return;
+      }
+      const result = applyDownloads(library.games, downloads);
+      library = { status: "ready", games: result.games };
+      if (result.needsRescan) {
+        refreshLibrary();
+      }
+    });
+
     const stopUpdateProgress = onUpdateProgress((percent) => {
       if (update.state === "installing") {
         update = { ...update, percent };
@@ -654,6 +668,7 @@
       clearInterval(friendsTimer);
       clearInterval(updateTimer);
       stopUpdateProgress.then((stop) => stop());
+      stopDownloads.then((stop) => stop());
       clearTimeout(launchTimer);
       stopGamepads();
       stopListening.then((stop) => stop());

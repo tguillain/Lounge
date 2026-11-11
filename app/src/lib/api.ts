@@ -4,6 +4,7 @@ import { getCurrentWebviewWindow } from "@tauri-apps/api/webviewWindow";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import type { PadAction } from "./input/gamepad-mapping";
 import { previewLibrary } from "./preview-library";
+import type { Downloads } from "./downloads";
 import type { AvailableUpdate, Battery, Friend, FriendsResult, Game, Preferences, Session, Toggle } from "./types";
 
 const runsInTauri = typeof window !== "undefined" && "__TAURI_INTERNALS__" in window;
@@ -146,7 +147,7 @@ const previewPreferences: Preferences = {
   vibration: true,
   showFriends: true,
   sounds: true,
-  version: "0.1.5",
+  version: "0.1.6",
   canUpdate: true,
 };
 
@@ -207,6 +208,13 @@ export const watchControllerBattery = async (handle: (battery: Battery | null) =
   const stop = await listen<Battery | null>("controller-battery", (event) => handle(event.payload));
   handle(await invoke<Battery | null>("get_controller_battery"));
   return stop;
+};
+
+export const onSteamDownloads = async (handle: (downloads: Downloads) => void): Promise<() => void> => {
+  if (!runsInTauri) {
+    return () => {};
+  }
+  return listen<Downloads>("steam-downloads", (event) => handle(event.payload));
 };
 
 export const pulseDualSense = (): void => {

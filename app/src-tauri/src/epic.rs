@@ -52,6 +52,7 @@ pub fn parse_item(content: &str) -> Option<Game> {
         play_time: None,
         images: GameImages::default(),
         hidden: false,
+        download: None,
     })
 }
 

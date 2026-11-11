@@ -12,6 +12,7 @@ const game = (name: string, store: Store, lastPlayed: number, sizeGb: number, pl
   launchUri: "",
   images: { hero: null, logo: null, logoIsDark: false, header: null, cover: null },
   hidden,
+  download: null,
 });
 
 const games = [

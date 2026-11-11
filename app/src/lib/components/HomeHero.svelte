@@ -1,5 +1,6 @@
 <script lang="ts">
   import { imageUrl } from "$lib/api";
+  import { downloadLabel } from "$lib/downloads";
   import { lastPlayedLabel, sizeLabel, storeLabel } from "$lib/format";
   import type { Game } from "$lib/types";
 
@@ -35,6 +36,8 @@
     <span class="pill">{storeLabel(game.store)}</span>
     {#if running}
       <span class="live"><span class="live-dot"></span>Now playing</span>
+    {:else if game.download}
+      <span class="downloading">{downloadLabel(game.download)}</span>
     {:else if lastPlayed}
       <span>Last played {lastPlayed}</span>
     {:else}
@@ -124,6 +127,12 @@
 
   .dot {
     color: var(--line);
+  }
+
+  .downloading {
+    font-weight: 600;
+    color: var(--text);
+    font-variant-numeric: tabular-nums;
   }
 
   .live {

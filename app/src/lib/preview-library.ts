@@ -12,6 +12,7 @@ const previewGame = (name: string, store: Store, hoursAgo: number, sizeGb: numbe
   launchUri: "",
   images: { hero: null, logo: null, logoIsDark: false, header: null, cover: null },
   hidden: false,
+  download: name === "The Depths" ? { kind: "update", state: "downloading", percent: 45 } : null,
 });
 
 export const previewLibrary = (): Game[] => [

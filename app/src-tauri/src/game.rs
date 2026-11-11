@@ -17,6 +17,29 @@ pub struct GameImages {
     pub cover: Option<String>,
 }
 
+#[derive(Debug, Clone, Copy, Serialize, PartialEq, Eq)]
+#[serde(rename_all = "lowercase")]
+pub enum DownloadKind {
+    Install,
+    Update,
+}
+
+#[derive(Debug, Clone, Copy, Serialize, PartialEq, Eq)]
+#[serde(rename_all = "lowercase")]
+pub enum DownloadState {
+    Downloading,
+    Paused,
+    Queued,
+}
+
+#[derive(Debug, Clone, Copy, Serialize, PartialEq, Eq)]
+#[serde(rename_all = "camelCase")]
+pub struct Download {
+    pub kind: DownloadKind,
+    pub state: DownloadState,
+    pub percent: Option<u8>,
+}
+
 #[derive(Debug, Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Game {
@@ -29,4 +52,5 @@ pub struct Game {
     pub launch_uri: String,
     pub images: GameImages,
     pub hidden: bool,
+    pub download: Option<Download>,
 }
