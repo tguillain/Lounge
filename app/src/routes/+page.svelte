@@ -472,6 +472,9 @@
 />
 
 <div class="screen">
+  {#if view === "library"}
+    <div class="ambient" aria-hidden="true"></div>
+  {/if}
   {#if view === "home" && selected}
     {#key selected.id}
       <div class="hero-art" style:background={placeholderArt(selected.name)}>
@@ -624,6 +627,19 @@
     position: relative;
     height: 100vh;
     overflow: hidden;
+  }
+
+  .ambient {
+    position: absolute;
+    inset: 0 0 auto 0;
+    height: 70vh;
+    background:
+      radial-gradient(40% 70% at 10% 0%, rgba(94, 92, 230, 0.4) 0%, transparent 100%),
+      radial-gradient(36% 60% at 48% 0%, rgba(255, 55, 95, 0.2) 0%, transparent 100%),
+      radial-gradient(40% 70% at 90% 0%, rgba(100, 210, 255, 0.26) 0%, transparent 100%),
+      radial-gradient(30% 50% at 70% 20%, rgba(191, 90, 242, 0.22) 0%, transparent 100%);
+    mask-image: linear-gradient(180deg, #000 0%, rgba(0, 0, 0, 0.5) 50%, transparent 100%);
+    animation: fade-in 0.5s var(--ease);
   }
 
   .hero-art {
