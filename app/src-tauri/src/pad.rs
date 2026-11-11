@@ -1,9 +1,11 @@
+use std::sync::Mutex;
 use std::sync::mpsc::{self, Receiver, Sender};
 use std::thread;
 use std::time::{Duration, Instant};
 
 use hidapi::{HidApi, HidDevice};
-use tauri::{AppHandle, Manager};
+use serde::Serialize;
+use tauri::{AppHandle, Emitter, Manager};
 
 use crate::quick_menu;
 
@@ -19,15 +21,34 @@ const USB_OUTPUT_LENGTH: usize = 48;
 const RUMBLE_FLAGS: u8 = 0x03;
 const PULSE_STRENGTH: u8 = 0x70;
 const PULSE_DURATION: Duration = Duration::from_millis(35);
+const USB_STATUS_OFFSET: usize = 53;
+const BLUETOOTH_REPORT_ID: u8 = 0x31;
+const BLUETOOTH_INPUT_LENGTH: usize = 78;
+const BLUETOOTH_STATUS_OFFSET: usize = 54;
+const CALIBRATION_FEATURE_REPORT: u8 = 0x05;
+const CALIBRATION_REPORT_LENGTH: usize = 41;
+pub const BATTERY_EVENT: &str = "controller-battery";
 
 pub struct PadControl {
     pulses: Sender<()>,
+    battery: Mutex<Option<Battery>>,
 }
 
 impl PadControl {
     pub fn pulse(&self) {
         let _ = self.pulses.send(());
     }
+
+    pub fn battery(&self) -> Option<Battery> {
+        self.battery.lock().ok().and_then(|battery| *battery)
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct Battery {
+    pub percent: u8,
+    pub charging: bool,
 }
 
 #[derive(Debug, Default, Clone, Copy, PartialEq, Eq)]
@@ -56,12 +77,13 @@ pub enum PadButton {
 
 pub fn spawn(app: AppHandle) {
     let (sender, pulses) = mpsc::channel();
-    app.manage(PadControl { pulses: sender });
+    app.manage(PadControl { pulses: sender, battery: Mutex::new(None) });
     thread::spawn(move || loop {
         if let Ok(mut api) = HidApi::new() {
             loop {
                 if let Some(device) = open_dualsense(&api) {
                     read_until_disconnected(&app, &device, &pulses);
+                    publish_battery(&app, None);
                 }
                 thread::sleep(RETRY_DELAY);
                 let _ = api.refresh_devices();
@@ -82,6 +104,7 @@ fn read_until_disconnected(app: &AppHandle, device: &HidDevice, pulses: &Receive
     let mut previous = Buttons::default();
     let mut wired = false;
     let mut rumble_ends_at: Option<Instant> = None;
+    let mut asked_for_full_reports = false;
     pulses.try_iter().for_each(drop);
     loop {
         let pulse_requested = pulses.try_iter().count() > 0;
@@ -98,7 +121,15 @@ fn read_until_disconnected(app: &AppHandle, device: &HidDevice, pulses: &Receive
         match device.read_timeout(&mut buffer, timeout) {
             Ok(0) => continue,
             Ok(length) => {
-                wired = is_usb_report(&buffer[..length]);
+                let report = &buffer[..length];
+                wired = is_usb_report(report);
+                if is_short_bluetooth_report(report) && !asked_for_full_reports {
+                    asked_for_full_reports = true;
+                    ask_for_full_reports(device);
+                }
+                if let Some(battery) = parse_battery(report) {
+                    publish_battery(app, Some(battery));
+                }
                 if let Some(current) = parse_report(&buffer[..length]) {
                     for button in newly_pressed(previous, current) {
                         quick_menu::handle_button(app, button);
@@ -108,6 +139,43 @@ fn read_until_disconnected(app: &AppHandle, device: &HidDevice, pulses: &Receive
             }
             Err(_) => return,
         }
+    }
+}
+
+fn publish_battery(app: &AppHandle, battery: Option<Battery>) {
+    let pad = app.state::<PadControl>();
+    let Ok(mut current) = pad.battery.lock() else {
+        return;
+    };
+    if *current != battery {
+        *current = battery;
+        let _ = app.emit(BATTERY_EVENT, battery);
+    }
+}
+
+fn ask_for_full_reports(device: &HidDevice) {
+    let mut calibration = [0u8; CALIBRATION_REPORT_LENGTH];
+    calibration[0] = CALIBRATION_FEATURE_REPORT;
+    let _ = device.get_feature_report(&mut calibration);
+}
+
+fn is_short_bluetooth_report(report: &[u8]) -> bool {
+    report.first() == Some(&0x01) && report.len() < USB_INPUT_LENGTH
+}
+
+pub fn parse_battery(report: &[u8]) -> Option<Battery> {
+    let status = match (*report.first()?, report.len()) {
+        (0x01, length) if length >= USB_INPUT_LENGTH => report[USB_STATUS_OFFSET],
+        (BLUETOOTH_REPORT_ID, length) if length >= BLUETOOTH_INPUT_LENGTH => report[BLUETOOTH_STATUS_OFFSET],
+        _ => return None,
+    };
+    let level = status & 0x0F;
+    let percent = (level * 10 + 5).min(100);
+    match status >> 4 {
+        0x0 => Some(Battery { percent, charging: false }),
+        0x1 => Some(Battery { percent, charging: true }),
+        0x2 => Some(Battery { percent: 100, charging: true }),
+        _ => None,
     }
 }
 
@@ -189,7 +257,8 @@ mod tests {
         let mut buffer = [0u8; 128];
         for _ in 0..5 {
             let length = device.read_timeout(&mut buffer, READ_TIMEOUT_MS).unwrap();
-            println!("report 0x{:02x} ({length} bytes) -> {:?}", buffer[0], parse_report(&buffer[..length]));
+            let report = &buffer[..length];
+            println!("report 0x{:02x} ({length} bytes) -> {:?} {:?}", buffer[0], parse_report(report), parse_battery(report));
         }
     }
 
@@ -244,6 +313,38 @@ mod tests {
         assert_eq!(report.len(), 48);
         assert_eq!(&report[..5], &[0x02, 0x03, 0x00, 0x70, 0x00]);
         assert!(report[5..].iter().all(|byte| *byte == 0));
+    }
+
+    #[test]
+    fn reads_the_battery_over_usb_while_charging() {
+        let mut report = usb_report(DPAD_NONE, 0);
+        report[53] = 0x16;
+        assert_eq!(parse_battery(&report), Some(Battery { percent: 65, charging: true }));
+    }
+
+    #[test]
+    fn reads_the_battery_over_bluetooth() {
+        let mut report = vec![0u8; 78];
+        report[0] = 0x31;
+        report[54] = 0x02;
+        assert_eq!(parse_battery(&report), Some(Battery { percent: 25, charging: false }));
+    }
+
+    #[test]
+    fn caps_the_battery_at_full() {
+        let mut report = usb_report(DPAD_NONE, 0);
+        report[53] = 0x0A;
+        assert_eq!(parse_battery(&report).map(|battery| battery.percent), Some(100));
+        report[53] = 0x2A;
+        assert_eq!(parse_battery(&report), Some(Battery { percent: 100, charging: true }));
+    }
+
+    #[test]
+    fn has_no_battery_level_in_short_reports_or_on_errors() {
+        assert_eq!(parse_battery(&[0x01, 0x80, 0x80, 0x80, 0x80, 0x08, 0, 0, 0, 0]), None);
+        let mut report = usb_report(DPAD_NONE, 0);
+        report[53] = 0xA5;
+        assert_eq!(parse_battery(&report), None);
     }
 
     #[test]

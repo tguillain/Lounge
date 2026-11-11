@@ -4,7 +4,7 @@ import { getCurrentWebviewWindow } from "@tauri-apps/api/webviewWindow";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import type { PadAction } from "./input/gamepad-mapping";
 import { previewLibrary } from "./preview-library";
-import type { AvailableUpdate, Friend, FriendsResult, Game, Preferences, Session, Toggle } from "./types";
+import type { AvailableUpdate, Battery, Friend, FriendsResult, Game, Preferences, Session, Toggle } from "./types";
 
 const runsInTauri = typeof window !== "undefined" && "__TAURI_INTERNALS__" in window;
 
@@ -145,7 +145,7 @@ const previewPreferences: Preferences = {
   startFullscreen: false,
   vibration: true,
   showFriends: true,
-  version: "0.1.3",
+  version: "0.1.4",
   canUpdate: true,
 };
 
@@ -196,6 +196,16 @@ export const onUpdateProgress = async (handle: (percent: number | null) => void)
     return () => {};
   }
   return listen<{ percent: number | null }>("update-progress", (event) => handle(event.payload.percent));
+};
+
+export const watchControllerBattery = async (handle: (battery: Battery | null) => void): Promise<() => void> => {
+  if (!runsInTauri) {
+    handle({ percent: 65, charging: false });
+    return () => {};
+  }
+  const stop = await listen<Battery | null>("controller-battery", (event) => handle(event.payload));
+  handle(await invoke<Battery | null>("get_controller_battery"));
+  return stop;
 };
 
 export const pulseDualSense = (): void => {

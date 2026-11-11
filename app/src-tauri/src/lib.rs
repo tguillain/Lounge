@@ -89,6 +89,11 @@ async fn install_update(app: tauri::AppHandle) -> Result<(), String> {
 }
 
 #[tauri::command]
+fn get_controller_battery(pad: tauri::State<'_, pad::PadControl>) -> Option<pad::Battery> {
+    pad.battery()
+}
+
+#[tauri::command]
 fn pulse_controller(pad: tauri::State<'_, pad::PadControl>) {
     pad.pulse();
 }
@@ -263,6 +268,7 @@ pub fn run() {
             check_for_update,
             install_update,
             pulse_controller,
+            get_controller_battery,
             launch_game,
             get_session,
             get_friends,

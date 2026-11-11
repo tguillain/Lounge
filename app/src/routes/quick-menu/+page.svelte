@@ -1,5 +1,6 @@
 <script lang="ts">
   import { onMount } from "svelte";
+  import BatteryIndicator from "$lib/components/BatteryIndicator.svelte";
   import Hints from "$lib/components/Hints.svelte";
   import { getSession, imageUrl, onControllerAction, openLounge, quitGame, resumeGame } from "$lib/api";
   import { clockLabel, dateLabel, placeholderArt, playTimeLabel } from "$lib/format";
@@ -109,6 +110,7 @@
   <header>
     <span class="clock">{clockLabel(now)}</span>
     <span class="date">{dateLabel(now)}</span>
+    <span class="battery-row"><BatteryIndicator /></span>
   </header>
 
   <section class="now-playing" aria-label="Now playing">
@@ -177,9 +179,10 @@
   }
 
   header {
-    display: flex;
-    flex-direction: column;
-    gap: 4px;
+    display: grid;
+    grid-template-columns: 1fr auto;
+    column-gap: 16px;
+    row-gap: 4px;
   }
 
   .clock {
@@ -193,6 +196,21 @@
   .date {
     font-size: 15px;
     color: var(--text-tertiary);
+  }
+
+  header > .clock,
+  header > .date {
+    grid-column: 1;
+  }
+
+  .battery-row {
+    grid-column: 2;
+    grid-row: 1 / span 2;
+    align-self: center;
+  }
+
+  .battery-row:empty {
+    display: none;
   }
 
   .now-playing {

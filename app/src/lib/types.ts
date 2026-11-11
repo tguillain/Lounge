@@ -58,6 +58,8 @@ export type Preferences = {
   canUpdate: boolean;
 };
 
+export type Battery = { percent: number; charging: boolean };
+
 export type AvailableUpdate = { version: string };
 
 export type UpdateStatus =

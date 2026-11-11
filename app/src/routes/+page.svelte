@@ -1,6 +1,7 @@
 <script lang="ts">
   import { onMount } from "svelte";
   import { SvelteSet } from "svelte/reactivity";
+  import BatteryIndicator from "$lib/components/BatteryIndicator.svelte";
   import FriendsPanel from "$lib/components/FriendsPanel.svelte";
   import GameMenu, { type MenuItem } from "$lib/components/GameMenu.svelte";
   import Hints, { type Hint } from "$lib/components/Hints.svelte";
@@ -668,6 +669,7 @@
         </button>
       </nav>
       <div class="top-right">
+        <BatteryIndicator />
         <span class="clock">{clockLabel(now)}</span>
         <button
           type="button"
