@@ -43,6 +43,7 @@ struct Preferences {
 
 const ALLOWED_LAUNCH_PREFIXES: [&str; 3] = ["steam://rungameid/", "steam://joinlobby/", "com.epicgames.launcher://apps/"];
 const STEAM_API_KEY_PAGE: &str = "https://steamcommunity.com/dev/apikey";
+const ONE_INSTANCE_ONLY: bool = !cfg!(debug_assertions);
 
 #[tauri::command]
 async fn get_friends() -> Result<friends::FriendsResult, String> {
@@ -197,7 +198,11 @@ fn build_tray(app: &tauri::App) -> tauri::Result<()> {
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
-    let app = tauri::Builder::default()
+    let mut builder = tauri::Builder::default();
+    if ONE_INSTANCE_ONLY {
+        builder = builder.plugin(tauri_plugin_single_instance::init(|app, _args, _cwd| window::open_main(app)));
+    }
+    let app = builder
         .plugin(tauri_plugin_opener::init())
         .manage(WindowState::default())
         .manage(SessionState::default())

@@ -154,7 +154,7 @@ app/
 
 - [ ] Session tracking and *Now playing* for Epic games
 - [ ] Rockstar Games Launcher support
-- [ ] Single instance: reopening Lounge brings back the running one
+- [x] Single instance: reopening Lounge brings back the running one
 - [ ] Subtle navigation sounds
 ## License
 
