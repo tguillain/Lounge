@@ -1056,9 +1056,10 @@
   }
 
   .layout {
+    --page-gutter: 64px;
     position: relative;
     height: 100%;
-    padding: 36px 64px 32px;
+    padding: 36px var(--page-gutter) 32px;
     display: flex;
     flex-direction: column;
   }

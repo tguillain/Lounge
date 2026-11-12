@@ -1,6 +1,7 @@
 <script lang="ts">
   import { untrack } from "svelte";
   import GameTile from "./GameTile.svelte";
+  import { SHELF_GAP, firstVisibleCard, shelfLayout } from "$lib/shelf";
   import type { Game } from "$lib/types";
 
   type Props = {
@@ -24,39 +25,30 @@
     moved: boolean;
   };
 
-  const TILE_WIDTH = 288;
-  const TILE_STEP = TILE_WIDTH + 28;
-  const SIDE_PADDING = 28;
-  const EDGE_MARGIN = 40;
   const DRAG_THRESHOLD_PX = 6;
   const GLIDE_MS = 180;
 
   let { games, selectedIndex, runningGameId, isBroken, onBroken, onSelect, onLaunch, onOptions }: Props = $props();
 
   let viewportWidth = $state(0);
-  let row = $state<HTMLDivElement>();
   let offset = $state(0);
   let dragging = $state(false);
   let drag: DragState | null = null;
   let suppressNextClick = false;
 
-  const visibleWidth = () => viewportWidth - 2 * SIDE_PADDING;
-  const maxOffset = () => Math.max(0, (row?.scrollWidth ?? 0) - visibleWidth());
+  const layout = $derived(shelfLayout(viewportWidth));
+  const maxOffset = () => Math.max(0, (games.length - layout.fullCards) * layout.step);
   const clampOffset = (value: number) => Math.round(Math.min(maxOffset(), Math.max(0, value)));
 
   $effect(() => {
     const index = selectedIndex;
-    if (viewportWidth === 0) {
+    const { fullCards, step } = layout;
+    if (viewportWidth === 0 || step === 0) {
       return;
     }
     untrack(() => {
-      const left = index * TILE_STEP;
-      const right = left + TILE_WIDTH;
-      if (left - EDGE_MARGIN < offset) {
-        offset = clampOffset(left - EDGE_MARGIN);
-      } else if (right + EDGE_MARGIN > offset + visibleWidth()) {
-        offset = clampOffset(right + EDGE_MARGIN - visibleWidth());
-      }
+      const first = firstVisibleCard(Math.round(offset / step), index, fullCards);
+      offset = Math.round(first * step);
     });
   });
 
@@ -138,7 +130,12 @@
   onclickcapture={handleClickCapture}
   onwheel={handleWheel}
 >
-  <div class="row" bind:this={row} style:transform="translateX(-{offset}px)">
+  <div
+    class="row"
+    style:transform="translateX({layout.start - offset}px)"
+    style:--tile-width="{layout.tileWidth}px"
+    style:gap="{SHELF_GAP}px"
+  >
     {#each games as game, index (game.id)}
       <GameTile
         {game}
@@ -156,8 +153,8 @@
 
 <style>
   .viewport {
-    margin: 0 -28px;
-    padding: 22px 28px;
+    margin: 0 calc(-1 * var(--page-gutter, 28px));
+    padding: 22px 0;
     overflow: hidden;
     cursor: grab;
     touch-action: pan-y;
@@ -170,7 +167,6 @@
 
   .row {
     display: flex;
-    gap: 28px;
     width: max-content;
     transition: transform 0.35s var(--ease);
   }

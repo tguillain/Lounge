@@ -57,7 +57,7 @@
   .tile {
     position: relative;
     flex: 0 0 auto;
-    width: 288px;
+    width: var(--tile-width, 288px);
     aspect-ratio: 460 / 215;
     padding: 0;
     border: 0;
