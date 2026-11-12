@@ -1,6 +1,6 @@
 [package]
 name = "lounge"
-version = "0.1.9"
+version = "0.1.10"
 description = "A console-style launcher for your PC games"
 authors = []
 license = "MIT"
