@@ -157,7 +157,7 @@ const previewPreferences: Preferences = {
   showFriends: true,
   sounds: true,
   lightbar: true,
-  version: "0.1.8",
+  version: "0.1.9",
   canUpdate: true,
 };
 
