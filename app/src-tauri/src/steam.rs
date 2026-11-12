@@ -302,6 +302,16 @@ fn registry_running_app_id() -> Option<u32> {
     steam_registry_key()?.get_value::<u32, _>("RunningAppID").ok()
 }
 
+#[cfg(windows)]
+pub fn language() -> Option<String> {
+    steam_registry_key()?.get_value::<String, _>("Language").ok().filter(|language| !language.is_empty())
+}
+
+#[cfg(not(windows))]
+pub fn language() -> Option<String> {
+    None
+}
+
 #[cfg(not(windows))]
 fn registry_steam_path() -> Option<String> {
     None

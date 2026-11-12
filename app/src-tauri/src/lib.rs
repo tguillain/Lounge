@@ -1,3 +1,4 @@
+mod achievements;
 mod autostart;
 mod dualsense_output;
 mod epic;
@@ -58,6 +59,13 @@ const ONE_INSTANCE_ONLY: bool = !cfg!(debug_assertions);
 #[tauri::command]
 async fn get_friends() -> Result<friends::FriendsResult, String> {
     tauri::async_runtime::spawn_blocking(friends::load).await.map_err(|error| error.to_string())
+}
+
+#[tauri::command]
+async fn get_achievements(app_id: u32) -> Result<achievements::AchievementsResult, String> {
+    tauri::async_runtime::spawn_blocking(move || achievements::load(app_id))
+        .await
+        .map_err(|error| error.to_string())
 }
 
 #[tauri::command]
@@ -301,6 +309,7 @@ pub fn run() {
             launch_game,
             get_session,
             get_friends,
+            get_achievements,
             save_steam_api_key,
             forget_steam_api_key,
             open_steam_api_key_page,

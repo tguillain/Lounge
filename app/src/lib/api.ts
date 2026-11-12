@@ -4,9 +4,9 @@ import { getCurrentWebviewWindow } from "@tauri-apps/api/webviewWindow";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import type { PadAction } from "./input/gamepad-mapping";
 import { hueOf } from "./format";
-import { previewLibrary } from "./preview-library";
+import { previewAchievements, previewLibrary } from "./preview-library";
 import type { Downloads } from "./downloads";
-import type { AvailableUpdate, Battery, Friend, FriendsResult, Game, Preferences, Session, Toggle } from "./types";
+import type { AchievementsResult, AvailableUpdate, Battery, Friend, FriendsResult, Game, Preferences, Session, Toggle } from "./types";
 
 const runsInTauri = typeof window !== "undefined" && "__TAURI_INTERNALS__" in window;
 
@@ -76,6 +76,14 @@ export const loadFriends = async (): Promise<FriendsResult> => {
     return { status: "ready", friends: previewFriends };
   }
   return invoke<FriendsResult>("get_friends");
+};
+
+export const loadAchievements = async (game: Game): Promise<AchievementsResult> => {
+  if (!runsInTauri) {
+    return previewAchievements(game);
+  }
+  const appId = Number(game.id.replace(/^steam:/, ""));
+  return invoke<AchievementsResult>("get_achievements", { appId });
 };
 
 export const saveSteamApiKey = async (key: string): Promise<void> => {

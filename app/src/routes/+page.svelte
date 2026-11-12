@@ -1,6 +1,7 @@
 <script lang="ts">
   import { onMount } from "svelte";
-  import { SvelteSet } from "svelte/reactivity";
+  import { SvelteMap, SvelteSet } from "svelte/reactivity";
+  import AchievementsView from "$lib/components/AchievementsView.svelte";
   import BatteryIndicator from "$lib/components/BatteryIndicator.svelte";
   import FriendsPanel from "$lib/components/FriendsPanel.svelte";
   import GameMenu, { type MenuItem } from "$lib/components/GameMenu.svelte";
@@ -22,6 +23,7 @@
     installUpdate,
     joinFriend,
     launchGame,
+    loadAchievements,
     loadFriends,
     loadLibrary,
     onGameSession,
@@ -55,9 +57,10 @@
   import { playSound, soundFor } from "$lib/sounds";
   import { FIRST_KEY, keyAt, matchesSearch, moveOnKeyboard, typeKey, type KeyPosition } from "$lib/search";
   import { applyDownloads } from "$lib/downloads";
-  import type { Friend, FriendsResult, Game, LibraryState, Preferences, Toggle, UpdateStatus } from "$lib/types";
+  import { countLabel, isSecret, orderAchievements } from "$lib/achievements";
+  import type { Achievement, AchievementsResult, Friend, FriendsResult, Game, LibraryState, Preferences, Toggle, UpdateStatus } from "$lib/types";
 
-  type View = "home" | "library" | "settings";
+  type View = "home" | "library" | "settings" | "achievements";
 
   const KEY_ACTIONS: Record<string, PadAction> = {
     ArrowLeft: "left",
@@ -80,6 +83,7 @@
   const VISIBLE_FRIENDS = 5;
   const UPDATE_CHECK_MS = 6 * 60 * 60 * 1000;
   const LIGHTBAR_DELAY_MS = 150;
+  const ACHIEVEMENTS_DELAY_MS = 300;
 
   let library = $state<LibraryState>({ status: "loading" });
   let view = $state<View>("home");
@@ -108,6 +112,12 @@
   let searchOpen = $state(false);
   let searchWithKeys = $state(true);
   let keyPosition = $state<KeyPosition>(FIRST_KEY);
+
+  const achievementsByGame = new SvelteMap<string, AchievementsResult>();
+  let achievementsGame = $state<Game | null>(null);
+  let achievementIndex = $state(0);
+  const revealedAchievements = new SvelteSet<string>();
+  let viewBeforeAchievements: "home" | "library" = "home";
 
   let menuGame = $state<Game | null>(null);
   let menuIndex = $state(0);
@@ -145,7 +155,41 @@
     return url && !brokenImages.has(url) ? url : null;
   };
 
-  const lightbarGame = $derived<Game | null>(view === "library" ? focusedLibraryGame : view === "home" ? selected : null);
+  const lightbarGame = $derived<Game | null>(
+    view === "library" ? focusedLibraryGame : view === "home" ? selected : view === "achievements" ? achievementsGame : null,
+  );
+
+  const achievementsOf = (game: Game | null): AchievementsResult | null =>
+    game?.store === "steam" ? (achievementsByGame.get(game.id) ?? null) : null;
+
+  const shownAchievements = $derived<AchievementsResult>(achievementsOf(achievementsGame) ?? { status: "loading" });
+  const orderedAchievements = $derived<Achievement[]>(
+    shownAchievements.status === "ready" ? orderAchievements(shownAchievements.achievements) : [],
+  );
+
+  const fetchAchievements = async (game: Game, refresh = false) => {
+    const known = achievementsByGame.get(game.id);
+    if (game.store !== "steam" || (known && known.status !== "failed" && !refresh)) {
+      return;
+    }
+    if (!known || known.status !== "ready") {
+      achievementsByGame.set(game.id, { status: "loading" });
+    }
+    try {
+      achievementsByGame.set(game.id, await loadAchievements(game));
+    } catch (error) {
+      achievementsByGame.set(game.id, { status: "failed", message: `Couldn't load achievements: ${error}` });
+    }
+  };
+
+  $effect(() => {
+    const game = view === "home" ? selected : null;
+    if (!game || game.store !== "steam") {
+      return;
+    }
+    const timer = setTimeout(() => fetchAchievements(game), ACHIEVEMENTS_DELAY_MS);
+    return () => clearTimeout(timer);
+  });
 
   $effect(() => {
     const game = lightbarGame;
@@ -265,6 +309,53 @@
     if (game) {
       menuIndex = 0;
       menuGame = game;
+      fetchAchievements(game);
+    }
+  };
+
+  const openAchievements = (game: Game) => {
+    if (view === "home" || view === "library") {
+      viewBeforeAchievements = view;
+    }
+    achievementsGame = game;
+    achievementIndex = 0;
+    revealedAchievements.clear();
+    view = "achievements";
+    fetchAchievements(game, true);
+  };
+
+  const closeAchievements = () => {
+    view = viewBeforeAchievements;
+    achievementsGame = null;
+  };
+
+  const activateAchievement = (achievement: Achievement) => {
+    if (isSecret(achievement)) {
+      revealedAchievements.add(achievement.id);
+    }
+  };
+
+  const runAchievementsAction = (action: PadAction) => {
+    if (action === "up" || action === "down") {
+      const next = Math.max(0, Math.min(orderedAchievements.length - 1, achievementIndex + (action === "down" ? 1 : -1)));
+      if (next !== achievementIndex) {
+        achievementIndex = next;
+        feedback();
+      }
+    } else if (action === "confirm") {
+      const focused = orderedAchievements[achievementIndex];
+      if (focused) {
+        activateAchievement(focused);
+      } else if (shownAchievements.status === "failed" && achievementsGame) {
+        fetchAchievements(achievementsGame, true);
+      }
+    } else if (action === "back" || action === "options") {
+      closeAchievements();
+    } else if (action === "previousTab" || action === "nextTab") {
+      closeAchievements();
+      switchView(action === "nextTab" ? "library" : "home");
+    } else if (action === "menu") {
+      openSettings();
     }
   };
 
@@ -302,7 +393,10 @@
   };
 
   const openSettings = () => {
-    if (view !== "settings") {
+    if (view === "achievements") {
+      viewBeforeSettings = viewBeforeAchievements;
+      achievementsGame = null;
+    } else if (view !== "settings") {
       viewBeforeSettings = view;
     }
     settingsIndex = 0;
@@ -376,7 +470,21 @@
     if (!game) {
       return [];
     }
+    const achievements = achievementsOf(game);
     return [
+      ...(game.store === "steam" && achievements?.status !== "none"
+        ? [
+            {
+              id: "achievements",
+              label: "Achievements",
+              value: achievements ? (countLabel(achievements) ?? undefined) : undefined,
+              run: () => {
+                closeMenu();
+                openAchievements(game);
+              },
+            },
+          ]
+        : []),
       {
         id: "hide",
         label: game.hidden ? "Show on Home" : "Hide from Home",
@@ -599,6 +707,10 @@
       runSearchAction(action);
       return;
     }
+    if (view === "achievements") {
+      runAchievementsAction(action);
+      return;
+    }
     if (action === "search" && view !== "settings") {
       openSearch();
       return;
@@ -617,7 +729,7 @@
   };
 
   const openLayers = () =>
-    (view === "settings" ? 1 : 0) + (menuGame ? 1 : 0) + (keyDialogOpen ? 1 : 0) + (searchOpen ? 1 : 0);
+    (view === "settings" || view === "achievements" ? 1 : 0) + (menuGame ? 1 : 0) + (keyDialogOpen ? 1 : 0) + (searchOpen ? 1 : 0);
 
   const focusKey = () =>
     [
@@ -632,6 +744,8 @@
       librarySort,
       settingsIndex,
       menuIndex,
+      achievementIndex,
+      revealedAchievements.size,
       searchQuery,
       keyPosition.row,
       keyPosition.column,
@@ -700,6 +814,15 @@
             { action: "confirm", label: "Show results" },
             { action: "back", label: "Close" },
           ];
+    }
+    if (view === "achievements") {
+      const focused = orderedAchievements[achievementIndex];
+      return [
+        ...(orderedAchievements.length > 1 ? [{ action: "navigate" as const, label: "Scroll" }] : []),
+        ...(focused && isSecret(focused) && !revealedAchievements.has(focused.id) ? [{ action: "confirm" as const, label: "Reveal" }] : []),
+        ...(shownAchievements.status === "failed" ? [{ action: "confirm" as const, label: "Try again" }] : []),
+        { action: "back", label: "Back" },
+      ];
     }
     if (view === "settings") {
       const row = rows[settingsIndex];
@@ -796,9 +919,16 @@
         runningGameId = gameId;
         closeLaunchOverlay();
       },
-      () => {
+      (gameId) => {
         runningGameId = null;
         refreshLibrary();
+        if (achievementsByGame.has(gameId)) {
+          const played = allGames.find((game) => game.id === gameId);
+          achievementsByGame.delete(gameId);
+          if (played) {
+            fetchAchievements(played);
+          }
+        }
       },
     );
 
@@ -822,8 +952,17 @@
 />
 
 <div class="screen">
-  {#if view !== "home"}
+  {#if view === "library" || view === "settings"}
     <div class="ambient" aria-hidden="true"></div>
+  {/if}
+  {#if view === "achievements" && achievementsGame}
+    {@const art = usableImage(achievementsGame.images.hero)}
+    <div class="hero-art faded" style:background={placeholderArt(achievementsGame.name)}>
+      {#if art}
+        <img src={art} alt="" decoding="async" onerror={() => markBroken(art)} />
+      {/if}
+    </div>
+    <div class="scrim deep"></div>
   {/if}
   {#if view === "home" && selected}
     {#key selected.id}
@@ -874,6 +1013,17 @@
         note={settingsNote}
         onFocus={(index) => (settingsIndex = index)}
         onActivate={activateSetting}
+      />
+    {:else if view === "achievements" && achievementsGame}
+      <AchievementsView
+        game={achievementsGame}
+        result={shownAchievements}
+        achievements={orderedAchievements}
+        focusedIndex={achievementIndex}
+        revealed={revealedAchievements}
+        onFocus={(index) => (achievementIndex = index)}
+        onActivate={activateAchievement}
+        onRetry={() => achievementsGame && fetchAchievements(achievementsGame, true)}
       />
     {:else if library.status === "loading"}
       <section class="message" aria-live="polite">
@@ -929,6 +1079,8 @@
           running={selectedIsRunning}
           {now}
           error={launchError}
+          achievements={achievementsOf(selected)}
+          onAchievements={() => selected && openAchievements(selected)}
           {isBroken}
           onBroken={markBroken}
           onPrimary={() => selected && playOrReturn(selected)}
@@ -1045,6 +1197,17 @@
     height: 100%;
     object-fit: cover;
     object-position: center top;
+  }
+
+  .hero-art.faded {
+    height: 100vh;
+    filter: blur(28px) saturate(1.2);
+    transform: scale(1.08);
+    opacity: 0.55;
+  }
+
+  .scrim.deep {
+    background: linear-gradient(180deg, rgba(10, 10, 12, 0.55) 0%, rgba(10, 10, 12, 0.85) 45%, var(--bg) 100%);
   }
 
   .scrim {

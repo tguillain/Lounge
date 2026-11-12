@@ -2,19 +2,21 @@
   import { imageUrl } from "$lib/api";
   import { downloadLabel } from "$lib/downloads";
   import { lastPlayedLabel, sizeLabel, storeLabel } from "$lib/format";
-  import type { Game } from "$lib/types";
+  import type { AchievementsResult, Game } from "$lib/types";
 
   type Props = {
     game: Game;
     running: boolean;
     now: Date;
     error: string | null;
+    achievements: AchievementsResult | null;
     isBroken: (url: string) => boolean;
     onBroken: (url: string) => void;
     onPrimary: () => void;
+    onAchievements: () => void;
   };
 
-  let { game, running, now, error, isBroken, onBroken, onPrimary }: Props = $props();
+  let { game, running, now, error, achievements, isBroken, onBroken, onPrimary, onAchievements }: Props = $props();
 
   const logo = $derived(imageUrl(game.images.logo));
   const logoUrl = $derived(logo && !isBroken(logo) ? logo : null);
@@ -46,6 +48,19 @@
     {#if size}
       <span class="dot" aria-hidden="true">·</span>
       <span>{size}</span>
+    {/if}
+    {#if achievements?.status === "ready"}
+      <span class="dot" aria-hidden="true">·</span>
+      <button
+        type="button"
+        class="trophies"
+        class:complete={achievements.unlocked === achievements.total}
+        aria-label="{achievements.unlocked} of {achievements.total} achievements"
+        onclick={onAchievements}
+      >
+        <svg aria-hidden="true" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 21h8M12 17v4M7 4h10v5a5 5 0 0 1-10 0z" /><path d="M17 5h3v2a3 3 0 0 1-3 3M7 5H4v2a3 3 0 0 0 3 3" /></svg>
+        {achievements.unlocked}/{achievements.total}
+      </button>
     {/if}
   </div>
   <div class="actions">
@@ -127,6 +142,25 @@
 
   .dot {
     color: var(--line);
+  }
+
+  .trophies {
+    padding: 0;
+    border: 0;
+    background: none;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: inherit;
+    color: inherit;
+    font-variant-numeric: tabular-nums;
+    cursor: pointer;
+    animation: fade-in 0.3s var(--ease);
+  }
+
+  .trophies.complete {
+    color: #ffd60a;
+    font-weight: 600;
   }
 
   .downloading {

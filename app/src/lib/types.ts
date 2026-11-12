@@ -80,3 +80,19 @@ export type UpdateStatus =
   | { state: "failed"; message: string };
 
 export type Toggle = "startFullscreen" | "sounds" | "vibration" | "lightbar" | "showFriends";
+
+export type Achievement = {
+  id: string;
+  name: string;
+  description: string | null;
+  icon: string | null;
+  unlockedAt: number | null;
+  hidden: boolean;
+  rarity: number | null;
+};
+
+export type AchievementsResult =
+  | { status: "loading" }
+  | { status: "none" }
+  | { status: "ready"; unlocked: number; total: number; achievements: Achievement[]; complete: boolean }
+  | { status: "failed"; message: string };

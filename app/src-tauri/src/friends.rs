@@ -9,7 +9,7 @@ use crate::{steam, vdf};
 const API_BASE: &str = "https://api.steampowered.com/ISteamUser";
 const KEYRING_SERVICE: &str = "Lounge";
 const KEYRING_USER: &str = "steam-web-api-key";
-const STEAM_ID64_BASE: u64 = 76_561_197_960_265_728;
+pub const STEAM_ID64_BASE: u64 = 76_561_197_960_265_728;
 const SUMMARIES_BATCH: usize = 100;
 const REQUEST_TIMEOUT: Duration = Duration::from_secs(8);
 const STATE_OFFLINE: u8 = 0;
@@ -108,7 +108,7 @@ pub fn forget_key() -> Result<(), String> {
     }
 }
 
-fn stored_key() -> Option<String> {
+pub fn stored_key() -> Option<String> {
     keyring_entry().ok()?.get_password().ok()
 }
 
@@ -168,7 +168,7 @@ fn to_friend(player: Player) -> Friend {
     }
 }
 
-fn current_steam_id() -> Option<String> {
+pub fn current_steam_id() -> Option<String> {
     let active = steam::active_account_id().filter(|id| *id != 0);
     if let Some(account_id) = active {
         return Some((STEAM_ID64_BASE + u64::from(account_id)).to_string());
