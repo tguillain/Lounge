@@ -2,13 +2,24 @@
   import { onMount } from "svelte";
   import BatteryIndicator from "$lib/components/BatteryIndicator.svelte";
   import Hints from "$lib/components/Hints.svelte";
-  import { getPreferences, getSession, imageUrl, onControllerAction, openLounge, quitGame, resumeGame } from "$lib/api";
+  import {
+    getAudioOutputs,
+    getPreferences,
+    getSession,
+    imageUrl,
+    onControllerAction,
+    openLounge,
+    quitGame,
+    resumeGame,
+    setAudioOutput,
+  } from "$lib/api";
+  import { currentOutputLabel, markCurrent, outputTitle } from "$lib/audio";
   import { clockLabel, dateLabel, placeholderArt, playTimeLabel } from "$lib/format";
   import type { PadAction } from "$lib/input/gamepad-mapping";
   import { playSound, type Sound } from "$lib/sounds";
-  import type { Session } from "$lib/types";
+  import type { AudioOutput, Session } from "$lib/types";
 
-  type Entry = { id: string; label: string; danger?: boolean; run: () => void };
+  type Entry = { id: string; label: string; value?: string; danger?: boolean; run: () => void };
 
   const CLOCK_REFRESH_MS = 15_000;
   const KEY_ACTIONS: Record<string, PadAction> = {
@@ -22,6 +33,8 @@
   let now = $state(new Date());
   let focusedIndex = $state(0);
   let confirmingQuit = $state(false);
+  let choosingOutput = $state(false);
+  let outputs = $state<AudioOutput[] | null>(null);
   let busy = $state(false);
   let error = $state<string | null>(null);
   let headerBroken = $state(false);
@@ -52,11 +65,47 @@
 
   const cancelQuit = () => {
     confirmingQuit = false;
+    focusedIndex = 3;
+  };
+
+  const openOutputs = () => {
+    choosingOutput = true;
+    error = null;
+    focusedIndex = Math.max(0, outputs?.findIndex((output) => output.current) ?? 0);
+  };
+
+  const leaveOutputs = () => {
+    choosingOutput = false;
     focusedIndex = 2;
   };
 
+  const pickOutput = (output: AudioOutput) =>
+    run(async () => {
+      if (output.current || !outputs) {
+        return;
+      }
+      await setAudioOutput(output);
+      outputs = markCurrent(outputs, output.id);
+      if (soundsOn) {
+        playSound("select");
+      }
+    });
+
+  const outputEntries = $derived<Entry[]>(
+    outputs?.length === 0
+      ? [{ id: "no-output", label: "No sound output found", run: leaveOutputs }]
+      : (outputs ?? []).map((output) => ({
+          id: output.id,
+          label: outputTitle(output),
+          value: output.current ? "In use" : undefined,
+          run: () => pickOutput(output),
+        })),
+  );
+
   const entries = $derived<Entry[]>(
-    confirmingQuit
+    choosingOutput
+      ? outputEntries
+      : confirmingQuit
       ? [
           { id: "confirm-quit", label: "Quit game", danger: true, run: () => run(quitGame) },
           { id: "cancel", label: "Cancel", run: cancelQuit },
@@ -64,6 +113,7 @@
       : [
           { id: "resume", label: "Resume game", run: () => run(resumeGame) },
           { id: "lounge", label: "Back to Lounge", run: () => run(openLounge) },
+          { id: "sound", label: "Sound output", value: currentOutputLabel(outputs) ?? "…", run: openOutputs },
           { id: "quit", label: "Quit game", danger: true, run: askToQuit },
         ],
   );
@@ -83,6 +133,8 @@
     } else if (action === "back") {
       if (confirmingQuit) {
         cancelQuit();
+      } else if (choosingOutput) {
+        leaveOutputs();
       } else {
         run(resumeGame);
       }
@@ -104,6 +156,9 @@
     getPreferences()
       .then((preferences) => (soundsOn = preferences.sounds))
       .catch(() => {});
+    getAudioOutputs()
+      .then((loaded) => (outputs = loaded))
+      .catch(() => (outputs = []));
 
     const clock = setInterval(() => (now = new Date()), CLOCK_REFRESH_MS);
     const stopListening = onControllerAction(handleAction);
@@ -139,6 +194,15 @@
     </span>
   </section>
 
+  {#if choosingOutput}
+    <div class="confirm">
+      <p class="confirm-title">Sound output</p>
+      {#if outputs?.length === 1}
+        <p class="confirm-body">Turn on your TV or plug in headphones to see more outputs here.</p>
+      {/if}
+    </div>
+  {/if}
+
   {#if confirmingQuit}
     <div class="confirm" role="alert">
       <p class="confirm-title">Quit {gameName}?</p>
@@ -157,7 +221,10 @@
         onpointerenter={() => (focusedIndex = index)}
         onclick={entry.run}
       >
-        {entry.label}
+        <span>{entry.label}</span>
+        {#if entry.value}
+          <span class="value">{entry.value}</span>
+        {/if}
       </button>
     {/each}
   </div>
@@ -171,7 +238,7 @@
       mode="playstation"
       hints={[
         { action: "confirm", label: "Select" },
-        { action: "back", label: confirmingQuit ? "Cancel" : "Resume" },
+        { action: "back", label: confirmingQuit ? "Cancel" : choosingOutput ? "Back" : "Resume" },
       ]}
     />
   </footer>
@@ -322,10 +389,28 @@
     font-size: 17px;
     font-weight: 500;
     text-align: left;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
     cursor: pointer;
     transition:
       background 0.15s ease,
       color 0.15s ease;
+  }
+
+  .value {
+    min-width: 0;
+    font-size: 15px;
+    font-weight: 500;
+    color: var(--text-tertiary);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  button.focused .value {
+    color: rgba(10, 10, 12, 0.6);
   }
 
   button.danger {

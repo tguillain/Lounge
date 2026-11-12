@@ -17,6 +17,7 @@
     backToGame,
     checkForUpdate,
     forgetSteamApiKey,
+    getAudioOutputs,
     getPreferences,
     getSession,
     imageUrl,
@@ -37,6 +38,7 @@
     runPower,
     releaseLightbar,
     saveSteamApiKey,
+    setAudioOutput,
     setGameHidden,
     setLightbar,
     setStartWithWindows,
@@ -62,7 +64,8 @@
   import { applyDownloads } from "$lib/downloads";
   import { countLabel, isSecret, orderAchievements } from "$lib/achievements";
   import { POWER_CHOICES, confirmationOf, type PowerChoice } from "$lib/power";
-  import type { Achievement, AchievementsResult, Friend, FriendsResult, Game, LibraryState, Preferences, Toggle, UpdateStatus } from "$lib/types";
+  import { currentOutputLabel, markCurrent, outputTitle } from "$lib/audio";
+  import type { Achievement, AchievementsResult, AudioOutput, Friend, FriendsResult, Game, LibraryState, Preferences, Toggle, UpdateStatus } from "$lib/types";
 
   type View = "home" | "library" | "settings" | "achievements";
 
@@ -127,6 +130,8 @@
   let powerIndex = $state(0);
   let powerConfirm = $state<PowerChoice | null>(null);
   let powerNote = $state<string | null>(null);
+  let choosingOutput = $state(false);
+  let outputs = $state<AudioOutput[] | null>(null);
 
   let menuGame = $state<Game | null>(null);
   let menuIndex = $state(0);
@@ -508,17 +513,57 @@
 
   const menuItems = $derived(gameMenuItems);
 
+  const loadOutputs = async () => {
+    try {
+      outputs = await getAudioOutputs();
+    } catch (error) {
+      outputs = [];
+      powerNote = `Couldn't read the sound outputs: ${error}`;
+    }
+  };
+
   const openPower = () => {
     menuGame = null;
     powerConfirm = null;
+    choosingOutput = false;
     powerNote = null;
     powerIndex = 0;
     powerOpen = true;
+    loadOutputs();
   };
 
   const closePower = () => {
     powerOpen = false;
     powerConfirm = null;
+    choosingOutput = false;
+  };
+
+  const openOutputs = () => {
+    choosingOutput = true;
+    powerNote = null;
+    powerIndex = Math.max(0, outputs?.findIndex((output) => output.current) ?? 0);
+  };
+
+  const leaveOutputs = () => {
+    choosingOutput = false;
+    powerNote = null;
+    powerIndex = 0;
+  };
+
+  const pickOutput = async (output: AudioOutput) => {
+    if (output.current || !outputs) {
+      return;
+    }
+    powerNote = null;
+    try {
+      await setAudioOutput(output);
+      outputs = markCurrent(outputs, output.id);
+      if (preferences?.sounds !== false) {
+        playSound("select");
+      }
+    } catch (error) {
+      powerNote = String(error);
+    }
   };
 
   const carryOut = async (choice: PowerChoice) => {
@@ -547,7 +592,7 @@
   };
 
   const cancelPowerConfirm = () => {
-    powerIndex = Math.max(0, POWER_CHOICES.findIndex((choice) => choice.id === powerConfirm));
+    powerIndex = Math.max(0, POWER_CHOICES.findIndex((choice) => choice.id === powerConfirm)) + 1;
     powerConfirm = null;
   };
 
@@ -561,8 +606,27 @@
         { id: "cancel", label: "Cancel", run: cancelPowerConfirm },
       ];
     }
-    return POWER_CHOICES.map((entry) => ({ id: entry.id, label: entry.label, run: () => choosePower(entry.id) }));
+    if (choosingOutput) {
+      if (outputs?.length === 0) {
+        return [{ id: "no-output", label: "No sound output found", run: leaveOutputs }];
+      }
+      return (outputs ?? []).map((output) => ({
+        id: output.id,
+        label: outputTitle(output),
+        value: output.current ? "In use" : undefined,
+        run: () => pickOutput(output),
+      }));
+    }
+    return [
+      { id: "sound", label: "Sound output", value: currentOutputLabel(outputs) ?? "…", run: openOutputs },
+      ...POWER_CHOICES.map((entry) => ({ id: entry.id, label: entry.label, run: () => choosePower(entry.id) })),
+    ];
   });
+
+  const powerTitle = $derived(choosingOutput ? "Sound output" : (powerConfirmation?.title ?? "Control Center"));
+  const outputsHint = $derived(
+    choosingOutput && outputs?.length === 1 ? "Turn on your TV or plug in headphones to see more outputs here." : null,
+  );
 
   const runPowerAction = (action: PadAction) => {
     if (action === "up" || action === "down") {
@@ -574,6 +638,8 @@
     } else if (action === "back") {
       if (powerConfirm) {
         cancelPowerConfirm();
+      } else if (choosingOutput) {
+        leaveOutputs();
       } else {
         closePower();
       }
@@ -839,6 +905,7 @@
       menuIndex,
       powerIndex,
       powerConfirm,
+      choosingOutput,
       achievementIndex,
       revealedAchievements.size,
       searchQuery,
@@ -956,7 +1023,7 @@
       { action: "options", label: "Options" },
       { action: "tabs", label: "Library" },
       { action: "menu", label: "Settings" },
-      ...(runningGameId ? [] : [{ action: "power" as const, label: "Power" }]),
+      ...(runningGameId ? [] : [{ action: "power" as const, label: "Control Center" }]),
       { action: "fullscreen", label: "Full screen" },
     ];
   });
@@ -1091,7 +1158,7 @@
       <div class="top-right">
         <BatteryIndicator />
         <span class="clock">{clockLabel(now)}</span>
-        <button type="button" class="settings-button" class:active={powerOpen} aria-label="Power" onclick={openPower}>
+        <button type="button" class="settings-button" class:active={powerOpen} aria-label="Control Center" onclick={openPower}>
           <svg aria-hidden="true" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v9" /><path d="M6.4 6.4a8 8 0 1 0 11.2 0" /></svg>
         </button>
         <button
@@ -1261,11 +1328,11 @@
 
   {#if powerOpen}
     <GameMenu
-      title={powerConfirmation?.title ?? "Power"}
+      title={powerTitle}
       items={powerItems}
       focusedIndex={powerIndex}
       mode={inputMode}
-      note={powerNote ?? powerConfirmation?.note ?? null}
+      note={powerNote ?? powerConfirmation?.note ?? outputsHint}
       onFocus={(index) => (powerIndex = index)}
       onClose={closePower}
     />

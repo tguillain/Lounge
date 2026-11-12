@@ -6,7 +6,7 @@ import type { PadAction } from "./input/gamepad-mapping";
 import { hueOf } from "./format";
 import { previewAchievements, previewLibrary } from "./preview-library";
 import type { Downloads } from "./downloads";
-import type { AchievementsResult, AvailableUpdate, Battery, Friend, FriendsResult, Game, Preferences, Session, Toggle } from "./types";
+import type { AchievementsResult, AudioOutput, AvailableUpdate, Battery, Friend, FriendsResult, Game, Preferences, Session, Toggle } from "./types";
 
 const runsInTauri = typeof window !== "undefined" && "__TAURI_INTERNALS__" in window;
 
@@ -244,6 +244,27 @@ export const onPowerButton = async (handle: () => void): Promise<() => void> => 
     return () => {};
   }
   return getCurrentWebviewWindow().listen("power-button", () => handle());
+};
+
+let previewOutputs: AudioOutput[] = [
+  { id: "tv", name: "LG TV", detail: "NVIDIA High Definition Audio", kind: "display", current: false },
+  { id: "speakers", name: "Speakers", detail: "Scarlett 2i2 USB", kind: "speakers", current: true },
+  { id: "pad", name: "Headset", detail: "DualSense Wireless Controller", kind: "controller", current: false },
+];
+
+export const getAudioOutputs = async (): Promise<AudioOutput[]> => {
+  if (!runsInTauri) {
+    return previewOutputs.map((output) => ({ ...output }));
+  }
+  return invoke<AudioOutput[]>("get_audio_outputs");
+};
+
+export const setAudioOutput = async (output: AudioOutput): Promise<void> => {
+  if (!runsInTauri) {
+    previewOutputs = previewOutputs.map((entry) => ({ ...entry, current: entry.id === output.id }));
+    return;
+  }
+  await invoke("set_audio_output", { id: output.id });
 };
 
 export const runPower = async (action: "sleep" | "restart" | "shut-down"): Promise<void> => {

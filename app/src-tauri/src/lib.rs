@@ -1,4 +1,5 @@
 mod achievements;
+mod audio;
 mod autostart;
 mod dualsense_output;
 mod epic;
@@ -124,6 +125,18 @@ async fn set_lightbar(app: tauri::AppHandle, image: Option<String>, fallback_hue
 #[tauri::command]
 fn release_lightbar(pad: tauri::State<'_, pad::PadControl>) {
     pad.set_light(None);
+}
+
+#[tauri::command]
+async fn get_audio_outputs() -> Result<Vec<audio::AudioOutput>, String> {
+    tauri::async_runtime::spawn_blocking(audio::list).await.map_err(|error| error.to_string())?
+}
+
+#[tauri::command]
+async fn set_audio_output(id: String) -> Result<(), String> {
+    tauri::async_runtime::spawn_blocking(move || audio::set_current(&id))
+        .await
+        .map_err(|error| error.to_string())?
 }
 
 #[tauri::command]
@@ -318,6 +331,8 @@ pub fn run() {
             pulse_controller,
             power,
             quit_lounge,
+            get_audio_outputs,
+            set_audio_output,
             get_controller_battery,
             set_lightbar,
             release_lightbar,

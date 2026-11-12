@@ -1,0 +1,85 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<title>Launcher — Centre de contrôle</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0;background:#0A0A0C}
+a{color:#F5F5F7;text-decoration:none}a:hover{color:#FFFFFF}
+</style>
+</helmet>
+<div style="width: 1440px; height: 900px; position: relative; overflow: hidden; background: #0A0A0C; color: #F5F5F7; font-family: Inter, -apple-system, 'Segoe UI', sans-serif">
+  <div aria-hidden="true" style="position: absolute; inset: -40px; filter: blur(28px); background: radial-gradient(42% 62% at 72% 36%, #FF7A2FD9 0%, transparent 72%), radial-gradient(55% 75% at 96% 92%, #B3261ECC 0%, transparent 70%), linear-gradient(160deg, #2A0E0A 0%, #120807 100%)"></div>
+  <div aria-hidden="true" style="position: absolute; inset: 0; background: rgba(10,10,12,.62)"></div>
+
+  <header style="position: absolute; top: 36px; left: 64px; right: 64px; display: flex; align-items: center; justify-content: space-between; opacity: .45">
+    <span style="font-size: 17px; font-weight: 600">Bonsoir</span>
+    <span style="display: flex; align-items: center; gap: 16px">
+      <span style="font-size: 15px; font-weight: 600; color: #D1D1D6">82 %</span>
+      <span style="font-size: 17px; font-weight: 600; font-variant-numeric: tabular-nums">21:47</span>
+      <span aria-hidden="true" style="width: 40px; height: 40px; border-radius: 999px; background: #F5F5F7; color: #0A0A0C; display: flex; align-items: center; justify-content: center">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v9"></path><path d="M6.4 6.4a8 8 0 1 0 11.2 0"></path></svg>
+      </span>
+    </span>
+  </header>
+
+  <div aria-hidden="true" style="position: absolute; left: 64px; top: 300px; display: flex; flex-direction: column; gap: 18px; opacity: .3; filter: blur(2px)">
+    <span style="font-size: 76px; font-weight: 700; letter-spacing: -0.035em; line-height: 1">Horizon de Cendres</span>
+    <span style="width: 240px; height: 4px; border-radius: 999px; background: rgba(255,255,255,.5)"></span>
+  </div>
+
+  <div style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); display: flex; align-items: flex-start; gap: 36px">
+
+    <section role="menu" aria-label="Centre de contrôle" style="width: 420px; box-sizing: border-box; padding: 20px; border-radius: 24px; background: #1C1C20; border: 1px solid rgba(255,255,255,.12); box-shadow: 0 30px 80px rgba(0,0,0,.55); display: flex; flex-direction: column; gap: 6px">
+      <p style="margin: 0 4px 10px; font-size: 15px; font-weight: 600; color: #AEAEB2">Centre de contrôle</p>
+      <button type="button" role="menuitem" style="height: 52px; padding: 0 16px; border: 0; border-radius: 14px; background: #F5F5F7; color: #0A0A0C; font-family: inherit; font-size: 16px; font-weight: 600; display: flex; align-items: center; justify-content: space-between; cursor: pointer">
+        <span>Sortie audio</span><span style="font-size: 15px; font-weight: 500; color: rgba(10,10,12,.6)">Scarlett 2i2 USB</span>
+      </button>
+      <button type="button" role="menuitem" style="height: 52px; padding: 0 16px; border: 0; border-radius: 14px; background: transparent; color: #F5F5F7; font-family: inherit; font-size: 16px; font-weight: 500; text-align: left; cursor: pointer">Veille</button>
+      <button type="button" role="menuitem" style="height: 52px; padding: 0 16px; border: 0; border-radius: 14px; background: transparent; color: #F5F5F7; font-family: inherit; font-size: 16px; font-weight: 500; text-align: left; cursor: pointer">Redémarrer</button>
+      <button type="button" role="menuitem" style="height: 52px; padding: 0 16px; border: 0; border-radius: 14px; background: transparent; color: #F5F5F7; font-family: inherit; font-size: 16px; font-weight: 500; text-align: left; cursor: pointer">Éteindre</button>
+      <button type="button" role="menuitem" style="height: 52px; padding: 0 16px; border: 0; border-radius: 14px; background: transparent; color: #F5F5F7; font-family: inherit; font-size: 16px; font-weight: 500; text-align: left; cursor: pointer">Quitter Lounge</button>
+      <div style="display: flex; gap: 18px; margin-top: 12px; font-size: 13px; color: #AEAEB2">
+        <span style="display: flex; align-items: center; gap: 6px"><span style="width: 22px; height: 22px; border-radius: 999px; border: 1.5px solid #AEAEB2; display: flex; align-items: center; justify-content: center; font-size: 12px">✕</span>Choisir</span>
+        <span style="display: flex; align-items: center; gap: 6px"><span style="width: 22px; height: 22px; border-radius: 999px; border: 1.5px solid #AEAEB2; display: flex; align-items: center; justify-content: center; font-size: 12px">○</span>Fermer</span>
+      </div>
+    </section>
+
+    <span aria-hidden="true" style="align-self: center; font-size: 28px; color: #8E8E93">→</span>
+
+    <section role="menu" aria-label="Sortie audio" style="width: 420px; box-sizing: border-box; padding: 20px; border-radius: 24px; background: #1C1C20; border: 1px solid rgba(255,255,255,.12); box-shadow: 0 30px 80px rgba(0,0,0,.55); display: flex; flex-direction: column; gap: 6px">
+      <p style="margin: 0 4px 10px; font-size: 15px; font-weight: 600; color: #AEAEB2">Sortie audio</p>
+      <button type="button" role="menuitem" style="height: 52px; padding: 0 16px; border: 0; border-radius: 14px; background: #F5F5F7; color: #0A0A0C; font-family: inherit; font-size: 16px; font-weight: 600; display: flex; align-items: center; justify-content: space-between; cursor: pointer">
+        <span>TV du salon</span>
+      </button>
+      <button type="button" role="menuitem" style="height: 52px; padding: 0 16px; border: 0; border-radius: 14px; background: transparent; color: #F5F5F7; font-family: inherit; font-size: 16px; font-weight: 500; display: flex; align-items: center; justify-content: space-between; cursor: pointer">
+        <span>Scarlett 2i2 USB</span><span style="font-size: 15px; color: #AEAEB2">Utilisée</span>
+      </button>
+      <button type="button" role="menuitem" style="height: 52px; padding: 0 16px; border: 0; border-radius: 14px; background: transparent; color: #F5F5F7; font-family: inherit; font-size: 16px; font-weight: 500; text-align: left; cursor: pointer">Casque de la manette</button>
+      <p style="margin: 8px 4px 0; font-size: 13px; line-height: 1.4; color: #AEAEB2">Le son bascule aussitôt, et un petit son de confirmation sort sur la nouvelle sortie.</p>
+      <div style="display: flex; gap: 18px; margin-top: 12px; font-size: 13px; color: #AEAEB2">
+        <span style="display: flex; align-items: center; gap: 6px"><span style="width: 22px; height: 22px; border-radius: 999px; border: 1.5px solid #AEAEB2; display: flex; align-items: center; justify-content: center; font-size: 12px">✕</span>Choisir</span>
+        <span style="display: flex; align-items: center; gap: 6px"><span style="width: 22px; height: 22px; border-radius: 999px; border: 1.5px solid #AEAEB2; display: flex; align-items: center; justify-content: center; font-size: 12px">○</span>Retour</span>
+      </div>
+    </section>
+  </div>
+
+  <p style="position: absolute; left: 64px; right: 64px; bottom: 36px; margin: 0; text-align: center; font-size: 14px; color: #AEAEB2">Bouton PS sur l'Accueil, ou icône d'alimentation en haut à droite. Redémarrer, éteindre et quitter demandent une confirmation.</p>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":900}}'>
+class Component extends DCLogic {
+  renderVals() {
+    return {};
+  }
+}
+</script>
+</body>
+</html>

@@ -10,10 +10,10 @@ pub fn handle_button(app: &AppHandle, button: PadButton) {
     if button == PadButton::Ps {
         if session::current(app).is_some() {
             toggle(app);
-        } else if let Some(main) = app.get_webview_window(crate::window::MAIN_LABEL) {
-            if main.is_focused().unwrap_or(false) {
-                let _ = app.emit_to(crate::window::MAIN_LABEL, "power-button", ());
-            }
+        } else if let Some(main) = app.get_webview_window(crate::window::MAIN_LABEL)
+            && main.is_focused().unwrap_or(false)
+        {
+            let _ = app.emit_to(crate::window::MAIN_LABEL, "power-button", ());
         }
         return;
     }

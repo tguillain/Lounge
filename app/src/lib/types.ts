@@ -96,3 +96,13 @@ export type AchievementsResult =
   | { status: "none" }
   | { status: "ready"; unlocked: number; total: number; achievements: Achievement[]; complete: boolean }
   | { status: "failed"; message: string };
+
+export type AudioOutputKind = "speakers" | "headphones" | "headset" | "display" | "controller" | "other";
+
+export type AudioOutput = {
+  id: string;
+  name: string;
+  detail: string | null;
+  kind: AudioOutputKind;
+  current: boolean;
+};
