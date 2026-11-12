@@ -20,6 +20,8 @@ pub struct Settings {
     pub sounds: bool,
     #[serde(default = "enabled")]
     pub lightbar: bool,
+    #[serde(default)]
+    pub quick_menu_shortcut: Option<String>,
 }
 
 impl Default for Settings {
@@ -31,6 +33,7 @@ impl Default for Settings {
             show_friends: true,
             sounds: true,
             lightbar: true,
+            quick_menu_shortcut: None,
         }
     }
 }
@@ -94,6 +97,12 @@ pub fn set_toggle(path: &Path, toggle: Toggle, enabled: bool) -> Result<(), Stri
     save(path, &settings)
 }
 
+pub fn set_quick_menu_shortcut(path: &Path, shortcut: Option<String>) -> Result<(), String> {
+    let mut settings = load(path);
+    settings.quick_menu_shortcut = shortcut;
+    save(path, &settings)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -138,6 +147,17 @@ mod tests {
         assert!(!settings.vibration);
         assert!(settings.show_friends);
         assert!(settings.hidden_games.contains("steam:730"));
+        let _ = fs::remove_dir_all(path.parent().unwrap());
+    }
+
+    #[test]
+    fn remembers_and_clears_the_quick_menu_shortcut() {
+        let path = temp_settings_path("shortcut");
+        assert_eq!(load(&path).quick_menu_shortcut, None);
+        set_quick_menu_shortcut(&path, Some("Ctrl+Shift+KeyQ".into())).unwrap();
+        assert_eq!(load(&path).quick_menu_shortcut.as_deref(), Some("Ctrl+Shift+KeyQ"));
+        set_quick_menu_shortcut(&path, None).unwrap();
+        assert_eq!(load(&path).quick_menu_shortcut, None);
         let _ = fs::remove_dir_all(path.parent().unwrap());
     }
 }

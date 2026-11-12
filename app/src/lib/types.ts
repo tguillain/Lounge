@@ -63,6 +63,7 @@ export type Preferences = {
   showFriends: boolean;
   sounds: boolean;
   lightbar: boolean;
+  quickMenuShortcut: string | null;
   version: string;
   canUpdate: boolean;
 };
@@ -98,6 +99,8 @@ export type AchievementsResult =
   | { status: "failed"; message: string };
 
 export type AudioOutputKind = "speakers" | "headphones" | "headset" | "display" | "controller" | "other";
+
+export type Volume = { level: number; muted: boolean };
 
 export type AudioOutput = {
   id: string;

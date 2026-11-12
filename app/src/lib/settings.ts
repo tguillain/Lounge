@@ -1,8 +1,9 @@
+import { shortcutLabel } from "./shortcut";
 import type { Preferences, Toggle, UpdateStatus } from "./types";
 
 export type SteamKeyState = "connected" | "missing" | "unknown";
 
-export type SettingsSection = "General" | "Controller" | "Steam friends" | "About";
+export type SettingsSection = "General" | "Controller" | "In game" | "Steam friends" | "About";
 
 type RowBase = { id: string; section: SettingsSection; label: string; description: string };
 
@@ -10,7 +11,7 @@ export type SettingsRow =
   | (RowBase & { kind: "toggle"; toggle: Toggle | "startWithWindows"; on: boolean; available: boolean })
   | (RowBase & {
       kind: "action";
-      action: "steam-key" | "remove-key" | "update" | "releases";
+      action: "steam-key" | "remove-key" | "quick-menu-shortcut" | "update" | "releases";
       value?: string;
       danger?: boolean;
       highlight?: boolean;
@@ -55,7 +56,24 @@ const updateRow = (preferences: Preferences, update: UpdateStatus): SettingsRow 
   }
 };
 
-export const settingsRows = (preferences: Preferences, steamKey: SteamKeyState, update: UpdateStatus): SettingsRow[] => [
+const shortcutRow = (preferences: Preferences, capturing: boolean): SettingsRow => ({
+  id: "quick-menu-shortcut",
+  section: "In game",
+  kind: "action",
+  action: "quick-menu-shortcut",
+  label: "Quick Menu shortcut",
+  description: capturing
+    ? "Press the keys you want. Esc cancels, Backspace turns the shortcut off."
+    : "Open the Quick Menu from the keyboard while you play.",
+  value: capturing ? "Press keys…" : preferences.quickMenuShortcut ? shortcutLabel(preferences.quickMenuShortcut) : "Off",
+});
+
+export const settingsRows = (
+  preferences: Preferences,
+  steamKey: SteamKeyState,
+  update: UpdateStatus,
+  capturingShortcut = false,
+): SettingsRow[] => [
   {
     id: "start-with-windows",
     section: "General",
@@ -108,6 +126,7 @@ export const settingsRows = (preferences: Preferences, steamKey: SteamKeyState, 
     on: preferences.lightbar,
     available: true,
   },
+  shortcutRow(preferences, capturingShortcut),
   {
     id: "show-friends",
     section: "Steam friends",

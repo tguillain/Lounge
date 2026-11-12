@@ -30,6 +30,7 @@ sysinfo = { version = "0.35", default-features = false, features = ["system"] }
 ureq = { version = "2.12", features = ["json"] }
 keyring = { version = "3", features = ["windows-native"] }
 tauri-plugin-updater = "2"
+tauri-plugin-global-shortcut = "2"
 
 [target.'cfg(windows)'.dependencies]
 winreg = "0.55"
@@ -38,6 +39,7 @@ windows = { version = "0.61", features = [
   "Win32_Devices_FunctionDiscovery",
   "Win32_Foundation",
   "Win32_Media_Audio",
+  "Win32_Media_Audio_Endpoints",
   "Win32_System_Com",
   "Win32_System_Com_StructuredStorage",
   "Win32_System_Variant",

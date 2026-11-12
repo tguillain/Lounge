@@ -10,6 +10,7 @@ const preferences: Preferences = {
   showFriends: true,
   sounds: true,
   lightbar: true,
+  quickMenuShortcut: null,
   version: "0.1.1",
   canUpdate: true,
 };
@@ -77,8 +78,34 @@ describe("the update row", () => {
 describe("sectionsOf", () => {
   it("groups rows by section and keeps their position in the list", () => {
     const groups = sectionsOf(settingsRows(preferences, "connected", upToDate));
-    expect(groups.map((group) => group.section)).toEqual(["General", "Controller", "Steam friends", "About"]);
-    expect(groups[2].rows.map(({ index }) => index)).toEqual([5, 6, 7]);
-    expect(groups[3].rows.map(({ row }) => row.id)).toEqual(["update", "releases"]);
+    expect(groups.map((group) => group.section)).toEqual(["General", "Controller", "In game", "Steam friends", "About"]);
+    expect(groups[3].rows.map(({ index }) => index)).toEqual([6, 7, 8]);
+    expect(groups[4].rows.map(({ row }) => row.id)).toEqual(["update", "releases"]);
+  });
+});
+
+describe("Quick Menu shortcut row", () => {
+  const shortcutRow = (overrides: Partial<Preferences>, capturing = false): Extract<SettingsRow, { kind: "action" }> => {
+    const row = settingsRows({ ...preferences, ...overrides }, "missing", upToDate, capturing).find(
+      (candidate) => candidate.id === "quick-menu-shortcut",
+    );
+    if (row?.kind !== "action") {
+      throw new Error("No shortcut row");
+    }
+    return row;
+  };
+
+  it("says Off until a shortcut is chosen", () => {
+    expect(shortcutRow({}).value).toBe("Off");
+  });
+
+  it("shows the chosen keys", () => {
+    expect(shortcutRow({ quickMenuShortcut: "Ctrl+Shift+KeyQ" }).value).toBe("Ctrl + Shift + Q");
+  });
+
+  it("asks for the keys while it listens", () => {
+    const row = shortcutRow({ quickMenuShortcut: "F10" }, true);
+    expect(row.value).toBe("Press keys…");
+    expect(row.description).toContain("Esc");
   });
 });

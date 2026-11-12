@@ -37,8 +37,23 @@ pub fn kind_of(form_factor: Option<u32>, detail: Option<&str>) -> OutputKind {
     }
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct Volume {
+    pub level: u8,
+    pub muted: bool,
+}
+
+pub fn level_of(scalar: f32) -> u8 {
+    (scalar.clamp(0.0, 1.0) * 100.0).round() as u8
+}
+
+pub fn scalar_of(level: u8) -> f32 {
+    f32::from(level.min(100)) / 100.0
+}
+
 #[cfg(windows)]
-pub use platform::{list, set_current};
+pub use platform::{list, set_current, set_level, set_muted, volume};
 
 #[cfg(not(windows))]
 pub fn list() -> Result<Vec<AudioOutput>, String> {
@@ -48,6 +63,21 @@ pub fn list() -> Result<Vec<AudioOutput>, String> {
 #[cfg(not(windows))]
 pub fn set_current(_id: &str) -> Result<(), String> {
     Err("Switching the sound output only works on Windows.".into())
+}
+
+#[cfg(not(windows))]
+pub fn volume() -> Result<Volume, String> {
+    Err("The volume only works on Windows.".into())
+}
+
+#[cfg(not(windows))]
+pub fn set_level(_level: u8) -> Result<Volume, String> {
+    volume()
+}
+
+#[cfg(not(windows))]
+pub fn set_muted(_muted: bool) -> Result<Volume, String> {
+    volume()
 }
 
 #[cfg(windows)]
@@ -63,9 +93,10 @@ mod platform {
     use windows::Win32::System::Com::{CLSCTX_ALL, COINIT_MULTITHREADED, CoCreateInstance, CoInitializeEx, CoTaskMemFree, CoUninitialize, STGM_READ};
     use windows::Win32::System::Variant::VT_UI4;
     use windows::Win32::UI::Shell::PropertiesSystem::IPropertyStore;
+    use windows::Win32::Media::Audio::Endpoints::IAudioEndpointVolume;
     use windows::core::{GUID, HRESULT, IUnknown, IUnknown_Vtbl, PCWSTR, PWSTR};
 
-    use super::{AudioOutput, kind_of};
+    use super::{AudioOutput, Volume, kind_of, level_of, scalar_of};
 
     const POLICY_CONFIG_CLIENT: GUID = GUID::from_u128(0x870af99c_171d_4f9e_af0d_e63df40c2bc9);
 
@@ -181,11 +212,58 @@ mod platform {
         }
         Ok(())
     }
+
+    fn volume_message(error: windows::core::Error) -> String {
+        format!("Windows couldn't reach the volume ({}).", error.message())
+    }
+
+    fn endpoint_volume() -> Result<IAudioEndpointVolume, String> {
+        let devices = enumerator().map_err(volume_message)?;
+        let device = unsafe { devices.GetDefaultAudioEndpoint(eRender, eConsole) }.map_err(volume_message)?;
+        unsafe { device.Activate::<IAudioEndpointVolume>(CLSCTX_ALL, None) }.map_err(volume_message)
+    }
+
+    fn read(endpoint: &IAudioEndpointVolume) -> Result<Volume, String> {
+        let scalar = unsafe { endpoint.GetMasterVolumeLevelScalar() }.map_err(volume_message)?;
+        let muted = unsafe { endpoint.GetMute() }.map_err(volume_message)?.as_bool();
+        Ok(Volume { level: level_of(scalar), muted })
+    }
+
+    pub fn volume() -> Result<Volume, String> {
+        let _com = Com::start();
+        read(&endpoint_volume()?)
+    }
+
+    pub fn set_level(level: u8) -> Result<Volume, String> {
+        let _com = Com::start();
+        let endpoint = endpoint_volume()?;
+        unsafe { endpoint.SetMasterVolumeLevelScalar(scalar_of(level), std::ptr::null()) }.map_err(volume_message)?;
+        if level > 0 {
+            unsafe { endpoint.SetMute(false, std::ptr::null()) }.map_err(volume_message)?;
+        }
+        read(&endpoint)
+    }
+
+    pub fn set_muted(muted: bool) -> Result<Volume, String> {
+        let _com = Com::start();
+        let endpoint = endpoint_volume()?;
+        unsafe { endpoint.SetMute(muted, std::ptr::null()) }.map_err(volume_message)?;
+        read(&endpoint)
+    }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn converts_the_volume_between_windows_and_percent() {
+        assert_eq!(level_of(0.7), 70);
+        assert_eq!(level_of(0.004), 0);
+        assert_eq!(level_of(1.4), 100);
+        assert_eq!(scalar_of(35), 0.35);
+        assert_eq!(scalar_of(250), 1.0);
+    }
 
     #[test]
     fn names_the_kind_of_output() {

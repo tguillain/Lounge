@@ -13,6 +13,7 @@ mod power;
 mod quick_menu;
 mod session;
 mod settings;
+mod shortcut;
 mod steam;
 mod update;
 mod vdf;
@@ -24,7 +25,7 @@ use std::path::PathBuf;
 use serde::Serialize;
 use tauri::menu::{Menu, MenuItem};
 use tauri::tray::{MouseButton, MouseButtonState, TrayIconBuilder, TrayIconEvent};
-use tauri::{Manager, RunEvent};
+use tauri::{Emitter, Manager, RunEvent};
 use tauri_plugin_opener::OpenerExt;
 
 use game::Game;
@@ -49,6 +50,7 @@ struct Preferences {
     show_friends: bool,
     sounds: bool,
     lightbar: bool,
+    quick_menu_shortcut: Option<String>,
     version: String,
     can_update: bool,
 }
@@ -140,6 +142,25 @@ async fn set_audio_output(id: String) -> Result<(), String> {
 }
 
 #[tauri::command]
+async fn get_volume() -> Result<audio::Volume, String> {
+    tauri::async_runtime::spawn_blocking(audio::volume).await.map_err(|error| error.to_string())?
+}
+
+#[tauri::command]
+async fn set_volume(level: u8) -> Result<audio::Volume, String> {
+    tauri::async_runtime::spawn_blocking(move || audio::set_level(level))
+        .await
+        .map_err(|error| error.to_string())?
+}
+
+#[tauri::command]
+async fn set_muted(muted: bool) -> Result<audio::Volume, String> {
+    tauri::async_runtime::spawn_blocking(move || audio::set_muted(muted))
+        .await
+        .map_err(|error| error.to_string())?
+}
+
+#[tauri::command]
 async fn power(action: power::PowerAction) -> Result<(), String> {
     tauri::async_runtime::spawn_blocking(move || power::run(action))
         .await
@@ -173,6 +194,7 @@ fn get_preferences(app: tauri::AppHandle) -> Result<Preferences, String> {
         show_friends: saved.show_friends,
         sounds: saved.sounds,
         lightbar: saved.lightbar,
+        quick_menu_shortcut: saved.quick_menu_shortcut,
         version: app.package_info().version.to_string(),
         can_update: update::AVAILABLE,
     })
@@ -186,6 +208,13 @@ fn set_start_with_windows(enabled: bool) -> Result<(), String> {
 #[tauri::command]
 fn set_toggle(app: tauri::AppHandle, toggle: settings::Toggle, enabled: bool) -> Result<(), String> {
     settings::set_toggle(&settings::path(&app)?, toggle, enabled)
+}
+
+#[tauri::command]
+async fn set_quick_menu_shortcut(app: tauri::AppHandle, shortcut: Option<String>) -> Result<(), String> {
+    tauri::async_runtime::spawn_blocking(move || shortcut::change(&app, shortcut.as_deref()))
+        .await
+        .map_err(|error| error.to_string())?
 }
 
 #[tauri::command]
@@ -250,6 +279,19 @@ async fn quick_menu_open_lounge(app: tauri::AppHandle) {
 }
 
 #[tauri::command]
+async fn quick_menu_open_settings(app: tauri::AppHandle) {
+    app.state::<quick_menu::SettingsRequest>().ask();
+    quick_menu::close(&app);
+    window::open_main(&app);
+    let _ = app.emit_to(window::MAIN_LABEL, quick_menu::OPEN_SETTINGS_EVENT, ());
+}
+
+#[tauri::command]
+fn take_settings_request(request: tauri::State<'_, quick_menu::SettingsRequest>) -> bool {
+    request.take()
+}
+
+#[tauri::command]
 async fn quick_menu_quit_game(app: tauri::AppHandle) -> Result<(), String> {
     let current = session::current(&app).ok_or("No game is running")?;
     tauri::async_runtime::spawn_blocking(move || session::kill_game(current.app_id))
@@ -301,10 +343,12 @@ pub fn run() {
     let app = builder
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_updater::Builder::new().build())
+        .plugin(shortcut::plugin())
         .manage(update::UpdateState::default())
         .manage(lightbar::ColorCache::default())
         .manage(WindowState::default())
         .manage(SessionState::default())
+        .manage(quick_menu::SettingsRequest::default())
         .setup(|app| {
             let scope = app.asset_protocol_scope();
             if let Some(root) = steam::steam_root() {
@@ -325,6 +369,7 @@ pub fn run() {
             get_preferences,
             set_start_with_windows,
             set_toggle,
+            set_quick_menu_shortcut,
             open_releases_page,
             check_for_update,
             install_update,
@@ -333,6 +378,11 @@ pub fn run() {
             quit_lounge,
             get_audio_outputs,
             set_audio_output,
+            get_volume,
+            set_volume,
+            set_muted,
+            quick_menu_open_settings,
+            take_settings_request,
             get_controller_battery,
             set_lightbar,
             release_lightbar,

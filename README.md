@@ -58,7 +58,10 @@ Steam's Big Picture mode is heavy. Store launchers are noisy. Lounge is neither:
 </p>
 
 ### ⏯️ A Quick Menu in game
-- Press the **PS button** mid-game and a slim overlay slides in: *Resume game*, *Back to Lounge*, *Sound output*, *Quit game*.
+- Press the **PS button** mid-game and a floating panel slides in over the game: *Back to Lounge* and *Quit game*, sound on or off, the sound output, a volume slider, and *Sleep*, *Restart* and *Shut down*. ○ takes you straight back to the game.
+- It shows how long you've been playing, this session and in total, and your achievement progress: what you unlocked this session, or the most common ones still locked.
+- The gear opens Lounge's Settings.
+- No controller in hand? Pick a **keyboard shortcut** in Settings, like F10 or Ctrl + Shift + Q. Lounge only claims it while a game is running.
 - Lounge tracks the session on its own: it knows when a game starts, brings it back to the front, and returns to Home when you quit.
 
 ### 🔌 Control Center
@@ -87,7 +90,7 @@ Steam's Big Picture mode is heavy. Store launchers are noisy. Lounge is neither:
 | Home ⇄ Library | L1 / R1 | LB / RB | Q / E |
 | Settings | Options | Menu | Tab |
 | Control Center (on Home) | PS | | Power icon |
-| Quick Menu (in game) | PS | | |
+| Quick Menu (in game) | PS | | Your shortcut, set in Settings |
 | Full screen | | | F11 |
 
 ## Stores
@@ -161,11 +164,12 @@ app/
    ├─ steam.rs, epic.rs      Store detection (with a small VDF parser)
    ├─ watcher.rs, session.rs Game sessions: start, focus, quit
    ├─ pad.rs, quick_menu.rs  DualSense over HID and the PS button overlay
+   ├─ shortcut.rs            The Quick Menu keyboard shortcut, held only in game
    ├─ dualsense_output.rs    Rumble and light bar reports for the DualSense
    ├─ lightbar.rs            The light bar color of each game
    ├─ friends.rs             Steam friends via the Web API
    ├─ achievements.rs        Steam achievements, from the Web API or Steam's cache
-   ├─ audio.rs, power.rs     Sound output switching, sleep, restart, shut down
+   ├─ audio.rs, power.rs     Sound output, volume and mute; sleep, restart, shut down
    ├─ update.rs              Signed self-updates
    └─ window.rs, autostart.rs Window lifecycle and Start with Windows
 ```
@@ -182,7 +186,8 @@ app/
 - [x] Subtle navigation sounds
 - [x] Steam achievements
 - [x] Control Center: sleep, restart, shut down and sound output
-- [ ] Session time and achievements of the running game in the Quick Menu
+- [x] Session time and achievements of the running game in the Quick Menu
+- [x] A keyboard shortcut for the Quick Menu
 - [ ] GOG, EA, Ubisoft and Battle.net libraries, and adding any game by hand
 
 ## License

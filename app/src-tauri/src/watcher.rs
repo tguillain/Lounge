@@ -3,7 +3,7 @@ use std::time::Duration;
 
 use tauri::{AppHandle, Emitter};
 
-use crate::{quick_menu, session, steam, window};
+use crate::{quick_menu, session, shortcut, steam, window};
 
 const POLL_INTERVAL: Duration = Duration::from_secs(2);
 pub const DOWNLOADS_EVENT: &str = "steam-downloads";
@@ -14,6 +14,7 @@ pub fn spawn(app: AppHandle) {
         let mut previous = steam::running_app_id();
         if previous != 0 {
             session::start(&app, previous);
+            shortcut::sync(&app);
         }
         loop {
             thread::sleep(POLL_INTERVAL);
@@ -28,10 +29,12 @@ pub fn spawn(app: AppHandle) {
             }
             if current != 0 {
                 session::start(&app, current);
+                shortcut::sync(&app);
                 let _ = app.emit("game-started", format!("steam:{current}"));
                 window::close_for_game(&app);
             } else {
                 session::end(&app);
+                shortcut::sync(&app);
                 quick_menu::close(&app);
                 let _ = app.emit("game-ended", format!("steam:{previous}"));
                 window::open_main(&app);

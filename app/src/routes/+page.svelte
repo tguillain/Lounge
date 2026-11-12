@@ -28,6 +28,7 @@
     loadFriends,
     loadLibrary,
     onGameSession,
+    onOpenSettings,
     onPowerButton,
     onSteamDownloads,
     onUpdateProgress,
@@ -41,8 +42,10 @@
     setAudioOutput,
     setGameHidden,
     setLightbar,
+    setQuickMenuShortcut,
     setStartWithWindows,
     setToggle,
+    takeSettingsRequest,
     toggleFullscreen,
   } from "$lib/api";
   import { clockLabel, greeting, placeholderArt } from "$lib/format";
@@ -65,6 +68,7 @@
   import { countLabel, isSecret, orderAchievements } from "$lib/achievements";
   import { POWER_CHOICES, confirmationOf, type PowerChoice } from "$lib/power";
   import { currentOutputLabel, markCurrent, outputTitle } from "$lib/audio";
+  import { captureShortcut, shortcutLabel } from "$lib/shortcut";
   import type { Achievement, AchievementsResult, AudioOutput, Friend, FriendsResult, Game, LibraryState, Preferences, Toggle, UpdateStatus } from "$lib/types";
 
   type View = "home" | "library" | "settings" | "achievements";
@@ -139,6 +143,7 @@
   let preferences = $state<Preferences | null>(null);
   let settingsIndex = $state(0);
   let settingsNote = $state<string | null>(null);
+  let capturingShortcut = $state(false);
   let viewBeforeSettings: "home" | "library" = "home";
   let update = $state<UpdateStatus>({ state: "idle" });
   const showFriends = $derived(preferences?.showFriends ?? true);
@@ -424,6 +429,7 @@
   };
 
   const closeSettings = () => {
+    capturingShortcut = false;
     view = viewBeforeSettings;
     homeZone = "shelf";
   };
@@ -453,10 +459,49 @@
     friendsResult.status === "loading" ? "unknown" : friendsResult.status === "not-configured" ? "missing" : "connected",
   );
 
-  const rows = $derived<SettingsRow[]>(preferences ? settingsRows(preferences, steamKeyState, update) : []);
+  const rows = $derived<SettingsRow[]>(preferences ? settingsRows(preferences, steamKeyState, update, capturingShortcut) : []);
+
+  const saveShortcut = async (shortcut: string | null) => {
+    if (!preferences) {
+      return;
+    }
+    capturingShortcut = false;
+    try {
+      await setQuickMenuShortcut(shortcut);
+      preferences = { ...preferences, quickMenuShortcut: shortcut };
+      settingsNote = shortcut
+        ? `Press ${shortcutLabel(shortcut)} during a game to open the Quick Menu.`
+        : "The Quick Menu shortcut is off.";
+    } catch (error) {
+      settingsNote = `${error}`;
+    }
+  };
+
+  const listenForShortcut = (event: KeyboardEvent) => {
+    event.preventDefault();
+    const result = captureShortcut(event);
+    if (result.kind === "waiting") {
+      return;
+    }
+    if (result.kind === "cancel") {
+      capturingShortcut = false;
+      settingsNote = null;
+    } else if (result.kind === "clear") {
+      saveShortcut(null);
+    } else if (result.kind === "invalid") {
+      settingsNote = result.message;
+    } else {
+      saveShortcut(result.shortcut);
+    }
+  };
 
   const activateSetting = (row: SettingsRow) => {
-    if (row.kind === "toggle") {
+    const wasCapturing = capturingShortcut;
+    capturingShortcut = false;
+    if (row.kind === "action" && row.action === "quick-menu-shortcut") {
+      capturingShortcut = !wasCapturing;
+      settingsNote = null;
+    } else if (row.kind === "toggle") {
       if (row.available) {
         flipSetting(row.toggle);
       }
@@ -822,6 +867,13 @@
   };
 
   const runSettingsAction = (action: PadAction) => {
+    if (capturingShortcut && action !== "confirm") {
+      capturingShortcut = false;
+      settingsNote = null;
+      if (action === "back" || action === "menu") {
+        return;
+      }
+    }
     if (action === "up" || action === "down") {
       const next = Math.max(0, Math.min(rows.length - 1, settingsIndex + (action === "down" ? 1 : -1)));
       if (next !== settingsIndex) {
@@ -937,6 +989,10 @@
     if (keyDialogOpen) {
       return;
     }
+    if (capturingShortcut && view === "settings") {
+      listenForShortcut(event);
+      return;
+    }
     if (searchOpen) {
       searchWithKeys = false;
       if (event.key === "Escape" || event.key === "Enter") {
@@ -985,6 +1041,9 @@
         ...(shownAchievements.status === "failed" ? [{ action: "confirm" as const, label: "Try again" }] : []),
         { action: "back", label: "Back" },
       ];
+    }
+    if (view === "settings" && capturingShortcut) {
+      return [{ action: "back", label: "Cancel" }];
     }
     if (view === "settings") {
       const row = rows[settingsIndex];
@@ -1072,6 +1131,17 @@
       act("power");
     });
 
+    const openSettingsIfAsked = () =>
+      takeSettingsRequest()
+        .then((asked) => {
+          if (asked && view !== "settings") {
+            openSettings();
+          }
+        })
+        .catch(() => {});
+    openSettingsIfAsked();
+    const stopOpenSettings = onOpenSettings(openSettingsIfAsked);
+
     const stopUpdateProgress = onUpdateProgress((percent) => {
       if (update.state === "installing") {
         update = { ...update, percent };
@@ -1106,6 +1176,7 @@
       clearInterval(updateTimer);
       stopUpdateProgress.then((stop) => stop());
       stopPowerButton.then((stop) => stop());
+      stopOpenSettings.then((stop) => stop());
       stopDownloads.then((stop) => stop());
       clearTimeout(launchTimer);
       stopGamepads();

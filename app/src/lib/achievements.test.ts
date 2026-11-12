@@ -1,5 +1,15 @@
 import { describe, expect, it } from "vitest";
-import { countLabel, isRare, isSecret, orderAchievements, progressPercent, rarityLabel, unlockedLabel } from "./achievements";
+import {
+  countLabel,
+  isRare,
+  isSecret,
+  orderAchievements,
+  progressPercent,
+  rarityLabel,
+  rarityPercent,
+  sessionHighlights,
+  unlockedLabel,
+} from "./achievements";
 import type { Achievement } from "./types";
 
 const achievement = (id: string, unlockedAt: number | null, rarity: number | null, hidden = false): Achievement => ({
@@ -40,6 +50,8 @@ describe("achievement labels", () => {
     expect(rarityLabel(4.21)).toBe("4.2% of players");
     expect(rarityLabel(0.04)).toBe("Under 0.1% of players");
     expect(rarityLabel(null)).toBeNull();
+    expect(rarityPercent(63.34)).toBe("63%");
+    expect(rarityPercent(0.04)).toBe("<0.1%");
     expect(isRare(achievement("a", null, 4.2))).toBe(true);
     expect(isRare(achievement("a", null, null))).toBe(false);
   });
@@ -52,5 +64,27 @@ describe("achievement labels", () => {
   it("dates unlocks", () => {
     expect(unlockedLabel(Date.UTC(2025, 2, 4, 12) / 1000)).toBe("Unlocked March 4, 2025");
     expect(unlockedLabel(0)).toBe("Unlocked");
+  });
+});
+
+describe("sessionHighlights", () => {
+  const started = 1_000_000;
+  const list = [
+    achievement("before", 900, 80),
+    achievement("during-old", 1_100, 40),
+    achievement("during-new", 1_500, 20),
+    achievement("common", null, 70),
+    achievement("rare", null, 3),
+    achievement("secret", null, 90, true),
+    achievement("medium", null, 30),
+    achievement("hard", null, 10),
+  ];
+
+  it("lists what was unlocked since the game started, newest first", () => {
+    expect(sessionHighlights(list, started).unlockedThisSession.map((a) => a.id)).toEqual(["during-new", "during-old"]);
+  });
+
+  it("suggests the most common locked achievements, never secret ones", () => {
+    expect(sessionHighlights(list, started).upNext.map((a) => a.id)).toEqual(["common", "medium", "hard"]);
   });
 });

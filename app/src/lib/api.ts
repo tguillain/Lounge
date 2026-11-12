@@ -6,7 +6,7 @@ import type { PadAction } from "./input/gamepad-mapping";
 import { hueOf } from "./format";
 import { previewAchievements, previewLibrary } from "./preview-library";
 import type { Downloads } from "./downloads";
-import type { AchievementsResult, AudioOutput, AvailableUpdate, Battery, Friend, FriendsResult, Game, Preferences, Session, Toggle } from "./types";
+import type { AchievementsResult, AudioOutput, AvailableUpdate, Battery, Friend, FriendsResult, Game, Preferences, Session, Toggle, Volume } from "./types";
 
 const runsInTauri = typeof window !== "undefined" && "__TAURI_INTERNALS__" in window;
 
@@ -157,6 +157,7 @@ const previewPreferences: Preferences = {
   showFriends: true,
   sounds: true,
   lightbar: true,
+  quickMenuShortcut: null,
   version: "0.1.10",
   canUpdate: true,
 };
@@ -182,6 +183,14 @@ export const setToggle = async (toggle: Toggle, enabled: boolean): Promise<void>
     return;
   }
   await invoke("set_toggle", { toggle, enabled });
+};
+
+export const setQuickMenuShortcut = async (shortcut: string | null): Promise<void> => {
+  if (!runsInTauri) {
+    previewPreferences.quickMenuShortcut = shortcut;
+    return;
+  }
+  await invoke("set_quick_menu_shortcut", { shortcut });
 };
 
 export const openReleasesPage = async (): Promise<void> => {
@@ -265,6 +274,51 @@ export const setAudioOutput = async (output: AudioOutput): Promise<void> => {
     return;
   }
   await invoke("set_audio_output", { id: output.id });
+};
+
+let previewVolume: Volume = { level: 70, muted: false };
+
+export const getVolume = async (): Promise<Volume> => {
+  if (!runsInTauri) {
+    return { ...previewVolume };
+  }
+  return invoke<Volume>("get_volume");
+};
+
+export const setVolume = async (level: number): Promise<Volume> => {
+  if (!runsInTauri) {
+    previewVolume = { level, muted: level > 0 ? false : previewVolume.muted };
+    return { ...previewVolume };
+  }
+  return invoke<Volume>("set_volume", { level });
+};
+
+export const setMuted = async (muted: boolean): Promise<Volume> => {
+  if (!runsInTauri) {
+    previewVolume = { ...previewVolume, muted };
+    return { ...previewVolume };
+  }
+  return invoke<Volume>("set_muted", { muted });
+};
+
+export const openLoungeSettings = async (): Promise<void> => {
+  if (runsInTauri) {
+    await invoke("quick_menu_open_settings");
+  }
+};
+
+export const takeSettingsRequest = async (): Promise<boolean> => {
+  if (!runsInTauri) {
+    return false;
+  }
+  return invoke<boolean>("take_settings_request");
+};
+
+export const onOpenSettings = async (handle: () => void): Promise<() => void> => {
+  if (!runsInTauri) {
+    return () => {};
+  }
+  return getCurrentWebviewWindow().listen("open-settings", () => handle());
 };
 
 export const runPower = async (action: "sleep" | "restart" | "shut-down"): Promise<void> => {
