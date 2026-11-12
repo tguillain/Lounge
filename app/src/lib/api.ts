@@ -239,6 +239,25 @@ export const releaseLightbar = async (): Promise<void> => {
   }
 };
 
+export const onPowerButton = async (handle: () => void): Promise<() => void> => {
+  if (!runsInTauri) {
+    return () => {};
+  }
+  return getCurrentWebviewWindow().listen("power-button", () => handle());
+};
+
+export const runPower = async (action: "sleep" | "restart" | "shut-down"): Promise<void> => {
+  if (runsInTauri) {
+    await invoke("power", { action });
+  }
+};
+
+export const quitLounge = async (): Promise<void> => {
+  if (runsInTauri) {
+    await invoke("quit_lounge");
+  }
+};
+
 export const pulseDualSense = (): void => {
   if (runsInTauri) {
     invoke("pulse_controller").catch(() => {});

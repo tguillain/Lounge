@@ -9,7 +9,8 @@ export type PadAction =
   | "menu"
   | "previousTab"
   | "nextTab"
-  | "search";
+  | "search"
+  | "power";
 
 export type ControllerFamily = "playstation" | "xbox";
 
@@ -27,7 +28,6 @@ const STANDARD_BUTTON_ACTIONS: Record<number, PadAction> = {
   13: "down",
   14: "left",
   15: "right",
-  16: "menu",
 };
 
 const DIRECTIONS: ReadonlySet<PadAction> = new Set(["left", "right", "up", "down"]);

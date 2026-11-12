@@ -27,11 +27,14 @@
     loadFriends,
     loadLibrary,
     onGameSession,
+    onPowerButton,
     onSteamDownloads,
     onUpdateProgress,
     openReleasesPage,
     openSteamApiKeyPage,
     pulseDualSense,
+    quitLounge,
+    runPower,
     releaseLightbar,
     saveSteamApiKey,
     setGameHidden,
@@ -58,6 +61,7 @@
   import { FIRST_KEY, keyAt, matchesSearch, moveOnKeyboard, typeKey, type KeyPosition } from "$lib/search";
   import { applyDownloads } from "$lib/downloads";
   import { countLabel, isSecret, orderAchievements } from "$lib/achievements";
+  import { POWER_CHOICES, confirmationOf, type PowerChoice } from "$lib/power";
   import type { Achievement, AchievementsResult, Friend, FriendsResult, Game, LibraryState, Preferences, Toggle, UpdateStatus } from "$lib/types";
 
   type View = "home" | "library" | "settings" | "achievements";
@@ -118,6 +122,11 @@
   let achievementIndex = $state(0);
   const revealedAchievements = new SvelteSet<string>();
   let viewBeforeAchievements: "home" | "library" = "home";
+
+  let powerOpen = $state(false);
+  let powerIndex = $state(0);
+  let powerConfirm = $state<PowerChoice | null>(null);
+  let powerNote = $state<string | null>(null);
 
   let menuGame = $state<Game | null>(null);
   let menuIndex = $state(0);
@@ -499,6 +508,80 @@
 
   const menuItems = $derived(gameMenuItems);
 
+  const openPower = () => {
+    menuGame = null;
+    powerConfirm = null;
+    powerNote = null;
+    powerIndex = 0;
+    powerOpen = true;
+  };
+
+  const closePower = () => {
+    powerOpen = false;
+    powerConfirm = null;
+  };
+
+  const carryOut = async (choice: PowerChoice) => {
+    powerNote = null;
+    try {
+      if (choice === "quit") {
+        await quitLounge();
+      } else {
+        closePower();
+        await runPower(choice);
+      }
+    } catch (error) {
+      powerOpen = true;
+      powerConfirm = null;
+      powerNote = String(error);
+    }
+  };
+
+  const choosePower = (choice: PowerChoice) => {
+    if (confirmationOf(choice)) {
+      powerConfirm = choice;
+      powerIndex = 0;
+    } else {
+      carryOut(choice);
+    }
+  };
+
+  const cancelPowerConfirm = () => {
+    powerIndex = Math.max(0, POWER_CHOICES.findIndex((choice) => choice.id === powerConfirm));
+    powerConfirm = null;
+  };
+
+  const powerConfirmation = $derived(powerConfirm ? confirmationOf(powerConfirm) : null);
+
+  const powerItems = $derived.by<MenuItem[]>(() => {
+    const choice = powerConfirm;
+    if (choice && powerConfirmation) {
+      return [
+        { id: "confirm", label: powerConfirmation.action, run: () => carryOut(choice) },
+        { id: "cancel", label: "Cancel", run: cancelPowerConfirm },
+      ];
+    }
+    return POWER_CHOICES.map((entry) => ({ id: entry.id, label: entry.label, run: () => choosePower(entry.id) }));
+  });
+
+  const runPowerAction = (action: PadAction) => {
+    if (action === "up" || action === "down") {
+      const step = action === "down" ? 1 : -1;
+      powerIndex = (powerIndex + step + powerItems.length) % powerItems.length;
+      feedback();
+    } else if (action === "confirm") {
+      powerItems[powerIndex]?.run();
+    } else if (action === "back") {
+      if (powerConfirm) {
+        cancelPowerConfirm();
+      } else {
+        closePower();
+      }
+    } else if (action === "power" || action === "menu") {
+      closePower();
+    }
+  };
+
   const switchView = (target: "home" | "library") => {
     if (view === target) {
       return;
@@ -693,6 +776,16 @@
       }
       return;
     }
+    if (powerOpen) {
+      runPowerAction(action);
+      return;
+    }
+    if (action === "power") {
+      if (!runningGameId && !launching && !searchOpen) {
+        openPower();
+      }
+      return;
+    }
     if (menuGame) {
       runMenuAction(action);
       return;
@@ -729,7 +822,7 @@
   };
 
   const openLayers = () =>
-    (view === "settings" || view === "achievements" ? 1 : 0) + (menuGame ? 1 : 0) + (keyDialogOpen ? 1 : 0) + (searchOpen ? 1 : 0);
+    (view === "settings" || view === "achievements" ? 1 : 0) + (menuGame ? 1 : 0) + (powerOpen ? 1 : 0) + (keyDialogOpen ? 1 : 0) + (searchOpen ? 1 : 0);
 
   const focusKey = () =>
     [
@@ -744,6 +837,8 @@
       librarySort,
       settingsIndex,
       menuIndex,
+      powerIndex,
+      powerConfirm,
       achievementIndex,
       revealedAchievements.size,
       searchQuery,
@@ -861,6 +956,7 @@
       { action: "options", label: "Options" },
       { action: "tabs", label: "Library" },
       { action: "menu", label: "Settings" },
+      ...(runningGameId ? [] : [{ action: "power" as const, label: "Power" }]),
       { action: "fullscreen", label: "Full screen" },
     ];
   });
@@ -904,6 +1000,11 @@
       }
     });
 
+    const stopPowerButton = onPowerButton(() => {
+      inputMode = "playstation";
+      act("power");
+    });
+
     const stopUpdateProgress = onUpdateProgress((percent) => {
       if (update.state === "installing") {
         update = { ...update, percent };
@@ -937,6 +1038,7 @@
       clearInterval(friendsTimer);
       clearInterval(updateTimer);
       stopUpdateProgress.then((stop) => stop());
+      stopPowerButton.then((stop) => stop());
       stopDownloads.then((stop) => stop());
       clearTimeout(launchTimer);
       stopGamepads();
@@ -989,6 +1091,9 @@
       <div class="top-right">
         <BatteryIndicator />
         <span class="clock">{clockLabel(now)}</span>
+        <button type="button" class="settings-button" class:active={powerOpen} aria-label="Power" onclick={openPower}>
+          <svg aria-hidden="true" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v9" /><path d="M6.4 6.4a8 8 0 1 0 11.2 0" /></svg>
+        </button>
         <button
           type="button"
           class="settings-button"
@@ -1151,6 +1256,18 @@
       mode={inputMode}
       onFocus={(index) => (menuIndex = index)}
       onClose={closeMenu}
+    />
+  {/if}
+
+  {#if powerOpen}
+    <GameMenu
+      title={powerConfirmation?.title ?? "Power"}
+      items={powerItems}
+      focusedIndex={powerIndex}
+      mode={inputMode}
+      note={powerNote ?? powerConfirmation?.note ?? null}
+      onFocus={(index) => (powerIndex = index)}
+      onClose={closePower}
     />
   {/if}
 

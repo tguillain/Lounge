@@ -1,5 +1,5 @@
 <script lang="ts" module>
-  export type HintAction = "navigate" | "confirm" | "back" | "options" | "search" | "menu" | "tabs" | "fullscreen";
+  export type HintAction = "navigate" | "confirm" | "back" | "options" | "search" | "menu" | "tabs" | "fullscreen" | "power";
   export type Hint = { action: HintAction; label: string };
 </script>
 
@@ -26,6 +26,7 @@
       search: { kind: "shape", path: SQUARE },
       menu: { kind: "key", text: "Options" },
       tabs: { kind: "key", text: "L1 R1" },
+      power: { kind: "key", text: "PS" },
     },
     xbox: {
       navigate: { kind: "dpad" },

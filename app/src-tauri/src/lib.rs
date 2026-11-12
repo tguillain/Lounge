@@ -8,6 +8,7 @@ mod game;
 mod lightbar;
 mod logo;
 mod pad;
+mod power;
 mod quick_menu;
 mod session;
 mod settings;
@@ -123,6 +124,18 @@ async fn set_lightbar(app: tauri::AppHandle, image: Option<String>, fallback_hue
 #[tauri::command]
 fn release_lightbar(pad: tauri::State<'_, pad::PadControl>) {
     pad.set_light(None);
+}
+
+#[tauri::command]
+async fn power(action: power::PowerAction) -> Result<(), String> {
+    tauri::async_runtime::spawn_blocking(move || power::run(action))
+        .await
+        .map_err(|error| error.to_string())?
+}
+
+#[tauri::command]
+fn quit_lounge(app: tauri::AppHandle) {
+    app.exit(0);
 }
 
 #[tauri::command]
@@ -303,6 +316,8 @@ pub fn run() {
             check_for_update,
             install_update,
             pulse_controller,
+            power,
+            quit_lounge,
             get_controller_battery,
             set_lightbar,
             release_lightbar,

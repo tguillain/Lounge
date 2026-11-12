@@ -20,10 +20,10 @@ describe("familyOf", () => {
 });
 
 describe("buttonAction", () => {
-  it("maps cross, circle and the PS button", () => {
+  it("maps cross and circle, leaving the PS button to the controller watcher", () => {
     expect(buttonAction(0)).toBe("confirm");
     expect(buttonAction(1)).toBe("back");
-    expect(buttonAction(16)).toBe("menu");
+    expect(buttonAction(16)).toBeNull();
   });
 
   it("opens settings with the Options / Menu button and options with triangle / Y", () => {
