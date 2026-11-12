@@ -8,7 +8,8 @@ export type PadAction =
   | "options"
   | "menu"
   | "previousTab"
-  | "nextTab";
+  | "nextTab"
+  | "search";
 
 export type ControllerFamily = "playstation" | "xbox";
 
@@ -17,6 +18,7 @@ export type InputMode = "keyboard" | ControllerFamily;
 const STANDARD_BUTTON_ACTIONS: Record<number, PadAction> = {
   0: "confirm",
   1: "back",
+  2: "search",
   3: "options",
   4: "previousTab",
   5: "nextTab",

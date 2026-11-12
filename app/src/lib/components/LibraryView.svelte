@@ -14,11 +14,14 @@
     focusedIndex: number | null;
     focusedControl: number | null;
     runningGameId: string | null;
+    search: string;
     now: Date;
     isBroken: (url: string) => boolean;
     onBroken: (url: string) => void;
     onFilter: (filter: LibraryFilter) => void;
     onCycleSort: () => void;
+    onSearch: () => void;
+    onClearSearch: () => void;
     onFocusGame: (index: number) => void;
     onActivate: (game: Game) => void;
     onOptions: (game: Game) => void;
@@ -33,11 +36,14 @@
     focusedIndex,
     focusedControl,
     runningGameId,
+    search,
     now,
     isBroken,
     onBroken,
     onFilter,
     onCycleSort,
+    onSearch,
+    onClearSearch,
     onFocusGame,
     onActivate,
     onOptions,
@@ -87,8 +93,17 @@
     <div class="title">
       <h1>Library</h1>
       <span class="count">{games.length} {games.length === 1 ? "game" : "games"}</span>
+      {#if search}
+        <button type="button" class="search-chip" aria-label="Clear the search for {search}" onclick={onClearSearch}>
+          “{search}”
+          <svg aria-hidden="true" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18" /></svg>
+        </button>
+      {/if}
     </div>
     <div class="controls" role="group" aria-label="Filter and sort">
+      <button type="button" class="chip icon" aria-label="Search" onclick={onSearch}>
+        <svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><circle cx="11" cy="11" r="7" /><path d="M20 20l-3.5-3.5" /></svg>
+      </button>
       {#each filters as filter, index (filter.id)}
         <button
           type="button"
@@ -108,7 +123,13 @@
   </div>
 
   {#if games.length === 0}
-    <p class="empty">{activeFilter === "hidden" ? "You haven't hidden any games." : "No games here."}</p>
+    <p class="empty">
+      {#if search}
+        No games match “{search}”.
+      {:else}
+        {activeFilter === "hidden" ? "You haven't hidden any games." : "No games here."}
+      {/if}
+    </p>
   {:else}
     <div class="scroller">
       <div class="grid" bind:this={grid} bind:clientWidth={gridWidth}>
@@ -217,6 +238,31 @@
 
   .sort {
     margin-left: 12px;
+  }
+
+  .chip.icon {
+    width: 40px;
+    padding: 0;
+    display: grid;
+    place-items: center;
+    margin-right: 12px;
+    color: var(--text-secondary);
+  }
+
+  .search-chip {
+    align-self: center;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    height: 32px;
+    padding: 0 12px 0 14px;
+    border: 0;
+    border-radius: 999px;
+    background: var(--text);
+    color: var(--bg);
+    font-size: 15px;
+    font-weight: 600;
+    cursor: pointer;
   }
 
   .scroller {

@@ -31,6 +31,10 @@ describe("buttonAction", () => {
     expect(buttonAction(3)).toBe("options");
   });
 
+  it("opens the search with square / X", () => {
+    expect(buttonAction(2)).toBe("search");
+  });
+
   it("switches tabs with the shoulder buttons", () => {
     expect(buttonAction(4)).toBe("previousTab");
     expect(buttonAction(5)).toBe("nextTab");

@@ -8,6 +8,7 @@
   import HomeHero from "$lib/components/HomeHero.svelte";
   import LaunchOverlay from "$lib/components/LaunchOverlay.svelte";
   import LibraryView from "$lib/components/LibraryView.svelte";
+  import SearchKeyboard from "$lib/components/SearchKeyboard.svelte";
   import SettingsView from "$lib/components/SettingsView.svelte";
   import Shelf from "$lib/components/Shelf.svelte";
   import SteamKeyDialog from "$lib/components/SteamKeyDialog.svelte";
@@ -52,6 +53,7 @@
   } from "$lib/library";
   import { settingsRows, type SettingsRow, type SteamKeyState } from "$lib/settings";
   import { playSound, soundFor } from "$lib/sounds";
+  import { FIRST_KEY, keyAt, matchesSearch, moveOnKeyboard, typeKey, type KeyPosition } from "$lib/search";
   import { applyDownloads } from "$lib/downloads";
   import type { Friend, FriendsResult, Game, LibraryState, Preferences, Toggle, UpdateStatus } from "$lib/types";
 
@@ -102,6 +104,11 @@
   let controlIndex = $state(0);
   let libraryColumns = $state(6);
 
+  let searchQuery = $state("");
+  let searchOpen = $state(false);
+  let searchWithKeys = $state(true);
+  let keyPosition = $state<KeyPosition>(FIRST_KEY);
+
   let menuGame = $state<Game | null>(null);
   let menuIndex = $state(0);
 
@@ -118,7 +125,12 @@
   const selectedIsRunning = $derived(selected !== null && selected.id === runningGameId);
 
   const filters = $derived(availableFilters(allGames));
-  const libraryGames = $derived(sortGames(filterGames(allGames, libraryFilter), librarySort));
+  const libraryGames = $derived(
+    sortGames(
+      filterGames(allGames, libraryFilter).filter((game) => matchesSearch(game.name, searchQuery)),
+      librarySort,
+    ),
+  );
   const focusedLibraryGame = $derived<Game | null>(libraryGames[libraryIndex] ?? null);
 
   const visibleFriends = $derived(friendsResult.status === "ready" ? friendsResult.friends.slice(0, VISIBLE_FRIENDS) : []);
@@ -399,6 +411,56 @@
     libraryIndex = 0;
   };
 
+  const setSearch = (query: string) => {
+    searchQuery = query;
+    libraryIndex = 0;
+  };
+
+  const openSearch = () => {
+    if (view !== "library") {
+      switchView("library");
+    }
+    searchWithKeys = inputMode !== "keyboard";
+    keyPosition = FIRST_KEY;
+    searchOpen = true;
+  };
+
+  const closeSearch = () => {
+    searchOpen = false;
+    libraryZone = "grid";
+    libraryIndex = 0;
+  };
+
+  const pressSearchKey = (position: KeyPosition) => {
+    keyPosition = position;
+    const key = keyAt(position);
+    if (key.kind === "done") {
+      closeSearch();
+    } else {
+      setSearch(typeKey(searchQuery, key));
+    }
+  };
+
+  const runSearchAction = (action: PadAction) => {
+    if (action === "left" || action === "right" || action === "up" || action === "down") {
+      const next = moveOnKeyboard(keyPosition, action);
+      if (keyAt(next) !== keyAt(keyPosition)) {
+        keyPosition = next;
+        feedback();
+      }
+    } else if (action === "confirm") {
+      if (searchWithKeys) {
+        pressSearchKey(keyPosition);
+      } else {
+        closeSearch();
+      }
+    } else if (action === "search") {
+      setSearch(searchQuery.slice(0, -1));
+    } else if (action === "back" || action === "menu") {
+      closeSearch();
+    }
+  };
+
   const moveSelection = (step: number) => {
     const next = Math.min(homeGames.length - 1, Math.max(0, selectedIndex + step));
     if (homeGames.length > 0 && next !== selectedIndex) {
@@ -467,6 +529,14 @@
         selectFilter(filters[controlIndex].id);
       }
     } else if (action === "back") {
+      leaveLibrary();
+    }
+  };
+
+  const leaveLibrary = () => {
+    if (searchQuery) {
+      setSearch("");
+    } else {
       switchView("home");
     }
   };
@@ -490,7 +560,7 @@
     } else if (action === "options") {
       openMenu(focusedLibraryGame);
     } else if (action === "back") {
-      switchView("home");
+      leaveLibrary();
     }
   };
 
@@ -525,6 +595,14 @@
       }
       return;
     }
+    if (searchOpen) {
+      runSearchAction(action);
+      return;
+    }
+    if (action === "search" && view !== "settings") {
+      openSearch();
+      return;
+    }
     if (action === "previousTab" || action === "nextTab") {
       switchView(action === "nextTab" ? "library" : "home");
     } else if (view === "settings") {
@@ -538,10 +616,26 @@
     }
   };
 
-  const openLayers = () => (view === "settings" ? 1 : 0) + (menuGame ? 1 : 0) + (keyDialogOpen ? 1 : 0);
+  const openLayers = () =>
+    (view === "settings" ? 1 : 0) + (menuGame ? 1 : 0) + (keyDialogOpen ? 1 : 0) + (searchOpen ? 1 : 0);
 
   const focusKey = () =>
-    [view, homeZone, selectedIndex, friendIndex, libraryZone, libraryIndex, controlIndex, libraryFilter, librarySort, settingsIndex, menuIndex].join("|");
+    [
+      view,
+      homeZone,
+      selectedIndex,
+      friendIndex,
+      libraryZone,
+      libraryIndex,
+      controlIndex,
+      libraryFilter,
+      librarySort,
+      settingsIndex,
+      menuIndex,
+      searchQuery,
+      keyPosition.row,
+      keyPosition.column,
+    ].join("|");
 
   const act = (action: PadAction) => {
     const layersBefore = openLayers();
@@ -567,6 +661,19 @@
     if (keyDialogOpen) {
       return;
     }
+    if (searchOpen) {
+      searchWithKeys = false;
+      if (event.key === "Escape" || event.key === "Enter") {
+        event.preventDefault();
+        act(event.key === "Escape" ? "back" : "confirm");
+      }
+      return;
+    }
+    if (event.key === "/" || ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "f")) {
+      event.preventDefault();
+      act("search");
+      return;
+    }
     if (event.key === "F11") {
       event.preventDefault();
       toggleFullscreen();
@@ -580,6 +687,20 @@
   };
 
   const hints = $derived.by<Hint[]>(() => {
+    if (searchOpen) {
+      return searchWithKeys
+        ? [
+            { action: "navigate", label: "Move" },
+            { action: "confirm", label: "Type" },
+            { action: "search", label: "Delete" },
+            { action: "menu", label: "Done" },
+            { action: "back", label: "Close" },
+          ]
+        : [
+            { action: "confirm", label: "Show results" },
+            { action: "back", label: "Close" },
+          ];
+    }
     if (view === "settings") {
       const row = rows[settingsIndex];
       return [
@@ -598,7 +719,8 @@
           label: libraryZone === "controls" ? "Select" : focusedLibraryGame?.id === runningGameId ? "Back to game" : "Play",
         },
         { action: "options", label: "Options" },
-        { action: "tabs", label: "Home" },
+        { action: "search", label: "Search" },
+        ...(searchQuery ? [{ action: "back" as const, label: "Clear search" }] : [{ action: "tabs" as const, label: "Home" }]),
         { action: "menu", label: "Settings" },
       ];
     }
@@ -772,11 +894,14 @@
         focusedIndex={libraryZone === "grid" ? libraryIndex : null}
         focusedControl={libraryZone === "controls" ? controlIndex : null}
         {runningGameId}
+        search={searchQuery}
         {now}
         {isBroken}
         onBroken={markBroken}
         onFilter={selectFilter}
         onCycleSort={cycleSort}
+        onSearch={openSearch}
+        onClearSearch={() => setSearch("")}
         onFocusGame={(index) => {
           libraryZone = "grid";
           libraryIndex = index;
@@ -844,6 +969,17 @@
 
     <Hints mode={inputMode} {hints} />
   </div>
+
+  {#if searchOpen}
+    <SearchKeyboard
+      query={searchQuery}
+      position={keyPosition}
+      showKeys={searchWithKeys}
+      resultCount={libraryGames.length}
+      onInput={setSearch}
+      onPressKey={pressSearchKey}
+    />
+  {/if}
 
   {#if keyDialogOpen}
     <SteamKeyDialog

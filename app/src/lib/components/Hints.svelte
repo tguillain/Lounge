@@ -1,5 +1,5 @@
 <script lang="ts" module>
-  export type HintAction = "navigate" | "confirm" | "back" | "options" | "menu" | "tabs" | "fullscreen";
+  export type HintAction = "navigate" | "confirm" | "back" | "options" | "search" | "menu" | "tabs" | "fullscreen";
   export type Hint = { action: HintAction; label: string };
 </script>
 
@@ -15,6 +15,7 @@
   const CROSS = "M6 6l12 12M18 6L6 18";
   const CIRCLE = "M5 12a7 7 0 1 0 14 0a7 7 0 1 0 -14 0";
   const TRIANGLE = "M12 4.5l8 14H4z";
+  const SQUARE = "M6 6h12v12H6z";
 
   const GLYPHS: Record<InputMode, Partial<Record<HintAction, Glyph>>> = {
     playstation: {
@@ -22,6 +23,7 @@
       confirm: { kind: "shape", path: CROSS },
       back: { kind: "shape", path: CIRCLE },
       options: { kind: "shape", path: TRIANGLE },
+      search: { kind: "shape", path: SQUARE },
       menu: { kind: "key", text: "Options" },
       tabs: { kind: "key", text: "L1 R1" },
     },
@@ -30,6 +32,7 @@
       confirm: { kind: "letter", text: "A" },
       back: { kind: "letter", text: "B" },
       options: { kind: "letter", text: "Y" },
+      search: { kind: "letter", text: "X" },
       menu: { kind: "letter", text: "≡" },
       tabs: { kind: "key", text: "LB RB" },
     },
@@ -38,6 +41,7 @@
       confirm: { kind: "key", text: "Enter" },
       back: { kind: "key", text: "Esc" },
       options: { kind: "key", text: "Right-click" },
+      search: { kind: "key", text: "/" },
       menu: { kind: "key", text: "Tab" },
       tabs: { kind: "key", text: "Q E" },
       fullscreen: { kind: "key", text: "F11" },
