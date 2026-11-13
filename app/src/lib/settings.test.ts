@@ -11,6 +11,7 @@ const preferences: Preferences = {
   sounds: true,
   lightbar: true,
   quickMenuShortcut: null,
+  pinnedFriends: [],
   version: "0.1.1",
   canUpdate: true,
 };
@@ -78,9 +79,16 @@ describe("the update row", () => {
 describe("sectionsOf", () => {
   it("groups rows by section and keeps their position in the list", () => {
     const groups = sectionsOf(settingsRows(preferences, "connected", upToDate));
-    expect(groups.map((group) => group.section)).toEqual(["General", "Controller", "In game", "Steam friends", "About"]);
-    expect(groups[3].rows.map(({ index }) => index)).toEqual([6, 7, 8]);
+    expect(groups.map((group) => group.section)).toEqual(["General", "Controller", "In game", "Friends", "About"]);
+    expect(groups[3].rows.map(({ index }) => index)).toEqual([6, 7, 8, 9]);
     expect(groups[4].rows.map(({ row }) => row.id)).toEqual(["update", "releases"]);
+  });
+
+  it("offers to disconnect PlayStation once it's connected", () => {
+    const friendRows = (psn: "connected" | "missing") =>
+      sectionsOf(settingsRows(preferences, "missing", upToDate, false, psn))[3].rows.map(({ row }) => row.id);
+    expect(friendRows("missing")).toEqual(["show-friends", "steam-key", "psn-connect"]);
+    expect(friendRows("connected")).toEqual(["show-friends", "steam-key", "psn-connect", "psn-disconnect"]);
   });
 });
 

@@ -3,7 +3,7 @@ import type { Preferences, Toggle, UpdateStatus } from "./types";
 
 export type SteamKeyState = "connected" | "missing" | "unknown";
 
-export type SettingsSection = "General" | "Controller" | "In game" | "Steam friends" | "About";
+export type SettingsSection = "General" | "Controller" | "In game" | "Friends" | "About";
 
 type RowBase = { id: string; section: SettingsSection; label: string; description: string };
 
@@ -11,7 +11,7 @@ export type SettingsRow =
   | (RowBase & { kind: "toggle"; toggle: Toggle | "startWithWindows"; on: boolean; available: boolean })
   | (RowBase & {
       kind: "action";
-      action: "steam-key" | "remove-key" | "quick-menu-shortcut" | "update" | "releases";
+      action: "steam-key" | "remove-key" | "psn-connect" | "psn-disconnect" | "quick-menu-shortcut" | "update" | "releases";
       value?: string;
       danger?: boolean;
       highlight?: boolean;
@@ -73,6 +73,7 @@ export const settingsRows = (
   steamKey: SteamKeyState,
   update: UpdateStatus,
   capturingShortcut = false,
+  psn: SteamKeyState = "missing",
 ): SettingsRow[] => [
   {
     id: "start-with-windows",
@@ -129,17 +130,17 @@ export const settingsRows = (
   shortcutRow(preferences, capturingShortcut),
   {
     id: "show-friends",
-    section: "Steam friends",
+    section: "Friends",
     kind: "toggle",
     toggle: "showFriends",
     label: "Show friends on Home",
-    description: "See which Steam friends are online and join their games.",
+    description: "See which Steam and PlayStation friends are online, and join their Steam games.",
     on: preferences.showFriends,
     available: true,
   },
   {
     id: "steam-key",
-    section: "Steam friends",
+    section: "Friends",
     kind: "action",
     action: "steam-key",
     label: steamKey === "connected" ? "Change Steam Web API key" : "Connect Steam",
@@ -150,11 +151,33 @@ export const settingsRows = (
     ? [
         {
           id: "remove-key",
-          section: "Steam friends",
+          section: "Friends",
           kind: "action",
           action: "remove-key",
           label: "Remove key",
           description: "Forget the key stored in Windows Credential Manager.",
+          danger: true,
+        } satisfies SettingsRow,
+      ]
+    : []),
+  {
+    id: "psn-connect",
+    section: "Friends",
+    kind: "action",
+    action: "psn-connect",
+    label: psn === "connected" ? "Sign in to PlayStation again" : "Connect PlayStation",
+    description: "Lounge signs in with a token from Sony to see your PlayStation friends.",
+    value: steamKeyValue[psn],
+  },
+  ...(psn === "connected"
+    ? [
+        {
+          id: "psn-disconnect",
+          section: "Friends",
+          kind: "action",
+          action: "psn-disconnect",
+          label: "Disconnect PlayStation",
+          description: "Forget the sign-in stored in Windows Credential Manager.",
           danger: true,
         } satisfies SettingsRow,
       ]

@@ -14,6 +14,7 @@ mod pad;
 mod playtime;
 mod power;
 mod process;
+mod psn;
 mod quick_menu;
 mod session;
 mod settings;
@@ -55,6 +56,7 @@ struct Preferences {
     sounds: bool,
     lightbar: bool,
     quick_menu_shortcut: Option<String>,
+    pinned_friends: Vec<String>,
     version: String,
     can_update: bool,
 }
@@ -67,6 +69,38 @@ const ONE_INSTANCE_ONLY: bool = !cfg!(debug_assertions);
 #[tauri::command]
 async fn get_friends() -> Result<friends::FriendsResult, String> {
     tauri::async_runtime::spawn_blocking(friends::load).await.map_err(|error| error.to_string())
+}
+
+#[tauri::command]
+async fn get_psn_friends() -> Result<friends::FriendsResult, String> {
+    tauri::async_runtime::spawn_blocking(psn::load).await.map_err(|error| error.to_string())
+}
+
+#[tauri::command]
+async fn connect_psn(token: String) -> Result<(), String> {
+    tauri::async_runtime::spawn_blocking(move || psn::connect(&token))
+        .await
+        .map_err(|error| error.to_string())?
+}
+
+#[tauri::command]
+fn disconnect_psn() -> Result<(), String> {
+    psn::disconnect()
+}
+
+#[tauri::command]
+fn open_psn_page(app: tauri::AppHandle, page: String) -> Result<(), String> {
+    let url = match page.as_str() {
+        "sign-in" => psn::SIGN_IN_PAGE,
+        "token" => psn::TOKEN_PAGE,
+        _ => return Err(format!("Unknown page: {page}")),
+    };
+    app.opener().open_url(url, None::<&str>).map_err(|error| error.to_string())
+}
+
+#[tauri::command]
+fn set_friend_pinned(app: tauri::AppHandle, friend_id: String, pinned: bool) -> Result<(), String> {
+    settings::set_friend_pinned(&settings::path(&app)?, &friend_id, pinned)
 }
 
 #[tauri::command]
@@ -227,6 +261,11 @@ fn pulse_controller(pad: tauri::State<'_, pad::PadControl>) {
     pad.pulse();
 }
 
+#[tauri::command]
+fn is_dualsense_read_by_lounge(pad: tauri::State<'_, pad::PadControl>) -> bool {
+    pad.connected()
+}
+
 fn logo_cache_dir(app: &tauri::AppHandle) -> Option<PathBuf> {
     let dir = app.path().app_cache_dir().ok()?.join("logos");
     std::fs::create_dir_all(&dir).ok()?;
@@ -245,6 +284,7 @@ fn get_preferences(app: tauri::AppHandle) -> Result<Preferences, String> {
         sounds: saved.sounds,
         lightbar: saved.lightbar,
         quick_menu_shortcut: saved.quick_menu_shortcut,
+        pinned_friends: saved.pinned_friends.into_iter().collect(),
         version: app.package_info().version.to_string(),
         can_update: update::AVAILABLE,
     })
@@ -437,11 +477,17 @@ pub fn run() {
             quick_menu_open_settings,
             take_settings_request,
             get_controller_battery,
+            is_dualsense_read_by_lounge,
             set_lightbar,
             release_lightbar,
             launch_game,
             get_session,
             get_friends,
+            get_psn_friends,
+            connect_psn,
+            disconnect_psn,
+            open_psn_page,
+            set_friend_pinned,
             get_achievements,
             get_game_details,
             open_game_folder,

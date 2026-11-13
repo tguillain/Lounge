@@ -19,7 +19,16 @@ const store: StoreInfo = {
   screenshots: [{ thumbnail: "store-1-small", full: "store-1" }],
 };
 
-const friend = (name: string, game: string | null): Friend => ({ steamId: name, name, avatar: null, presence: "online", game, joinUri: null });
+const friend = (name: string, game: string | null): Friend => ({
+  id: `steam:${name}`,
+  network: "steam",
+  name,
+  avatar: null,
+  presence: "online",
+  game,
+  platform: null,
+  joinUri: null,
+});
 
 describe("detailActions", () => {
   it("always offers Play and Options, and the rest when they apply", () => {

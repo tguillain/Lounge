@@ -98,18 +98,26 @@ body{margin:0}
 
       <aside aria-label="Amis en ligne" style="flex: 0 0 340px; box-sizing: border-box; padding: 20px; border-radius: 24px; background: rgba(20,20,24,.6); border: 1px solid rgba(255,255,255,.12); backdrop-filter: blur(30px); box-shadow: 0 24px 60px rgba(0,0,0,.4); display: flex; flex-direction: column; gap: 14px">
         <div style="display: flex; align-items: baseline; justify-content: space-between">
-          <h2 style="margin: 0; font-size: 17px; font-weight: 600; letter-spacing: -0.01em">Amis en ligne</h2>
+          <h2 style="margin: 0; font-size: 17px; font-weight: 600; letter-spacing: -0.01em">Amis</h2>
           <span style="font-size: 14px; color: #AEAEB2">{{onlineCount}}</span>
         </div>
         <ul style="list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px">
           <sc-for list="{{friends}}" as="f" hint-placeholder-count="4">
             <li style="display: flex; align-items: center; gap: 12px; min-height: 52px">
-              <span style="position: relative; flex: 0 0 auto; width: 40px; height: 40px; border-radius: 999px; display: flex; align-items: center; justify-content: center; font-size: 15px; font-weight: 700; color: #0A0A0C; background: {{f.color}}">
+              <span style="position: relative; flex: 0 0 auto; width: 40px; height: 40px; border-radius: 999px; display: flex; align-items: center; justify-content: center; font-size: 15px; font-weight: 700; color: #0A0A0C; background: {{f.color}}; opacity: {{f.avatarOpacity}}">
                 {{f.initial}}
-                <span aria-hidden="true" style="position: absolute; right: -2px; bottom: -2px; width: 13px; height: 13px; box-sizing: border-box; border-radius: 999px; border: 2.5px solid #1C1C20; background: {{f.dot}}"></span>
+                <span aria-hidden="true" style="position: absolute; right: -2px; bottom: -2px; width: 13px; height: 13px; box-sizing: border-box; border-radius: 999px; border: 2.5px solid #1C1C20; background: {{f.dot}}; display: {{f.dotDisplay}}"></span>
               </span>
               <span style="flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px">
-                <span style="font-size: 15px; font-weight: 600; color: #F5F5F7">{{f.name}}</span>
+                <span style="display: flex; align-items: center; gap: 6px; font-size: 15px; font-weight: 600; color: #F5F5F7">
+                  {{f.name}}
+                  <sc-if value="{{f.psn}}" hint-placeholder-val="{{ false }}">
+                    <span title="PlayStation Network" style="padding: 1px 5px; border-radius: 5px; background: rgba(0,112,209,.35); color: #9CC8FF; font-size: 10px; font-weight: 700; letter-spacing: .04em">PS</span>
+                  </sc-if>
+                  <sc-if value="{{f.pinned}}" hint-placeholder-val="{{ false }}">
+                    <svg role="img" aria-label="Épinglé" width="13" height="13" viewBox="0 0 24 24" fill="#FFD60A"><path d="M16 3l5 5-2.5 1-3.5 3.5.5 5-1.5 1.5-4-4-5 5-1.5-1.5 5-5-4-4L6 8l5 .5L14.5 5z"></path></svg>
+                  </sc-if>
+                </span>
                 <span style="font-size: 13px; color: {{f.statusColor}}; white-space: nowrap; overflow: hidden; text-overflow: ellipsis">{{f.status}}</span>
               </span>
               <sc-if value="{{f.canJoin}}" hint-placeholder-val="{{ false }}">
@@ -118,7 +126,7 @@ body{margin:0}
             </li>
           </sc-for>
         </ul>
-        <a href="#" style="display: flex; align-items: center; justify-content: center; height: 44px; border-radius: 14px; background: rgba(255,255,255,.08); color: #F5F5F7; text-decoration: none; font-size: 14px; font-weight: 500">Voir tous les amis</a>
+        <p style="margin: 0; font-size: 13px; line-height: 1.4; color: #8E8E93">Amis Steam et PlayStation. △ sur un ami l'épingle en haut, même hors ligne.</p>
       </aside>
     </div>
 
@@ -197,20 +205,25 @@ class Component extends DCLogic {
   }
   friendList() {
     const raw = [
-      { name: 'Kaori', color: '#FF9F0A', state: 'game', status: 'Joue à Neon Drift · 2/4' },
+      { name: 'Jade-77', color: '#FF6482', state: 'offline', status: 'Hors ligne', psn: true, pinned: true },
+      { name: 'Kaori', color: '#FF9F0A', state: 'game', status: 'Joue à Neon Drift · 2/4', join: true },
+      { name: 'Hakoom', color: '#64D2FF', state: 'game', status: 'Joue à Astro Bot · PS5', psn: true },
       { name: 'Mathis_R', color: '#5B8DEF', state: 'game', status: 'Joue à Orbite' },
-      { name: 'Nyx', color: '#BF5AF2', state: 'online', status: 'En ligne' },
-      { name: 'Bastien', color: '#E5E5EA', state: 'away', status: 'Absent · 20 min' }
+      { name: 'Nyx', color: '#BF5AF2', state: 'online', status: 'En ligne' }
     ];
     return raw.map((f) => ({
       name: f.name,
       initial: f.name.charAt(0),
       color: f.color,
       status: f.status,
-      online: f.state !== 'away',
+      online: f.state !== 'offline',
+      psn: !!f.psn,
+      pinned: !!f.pinned,
+      avatarOpacity: f.state === 'offline' ? '.5' : '1',
+      dotDisplay: f.state === 'offline' ? 'none' : 'block',
       dot: f.state === 'game' ? '#30D158' : (f.state === 'online' ? '#64D2FF' : '#8E8E93'),
       statusColor: f.state === 'game' ? '#7EE2A0' : '#AEAEB2',
-      canJoin: f.state === 'game',
+      canJoin: !!f.join,
       joinLabel: 'Rejoindre ' + f.name
     }));
   }

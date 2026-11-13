@@ -1,30 +1,34 @@
 <script lang="ts">
   import { onMount } from "svelte";
+  import type { FriendNetwork } from "$lib/types";
 
   type Props = {
+    network: FriendNetwork;
     connected: boolean;
-    onSave: (key: string) => Promise<void>;
+    onSave: (secret: string) => Promise<void>;
     onForget: () => Promise<void>;
-    onOpenKeyPage: () => void;
+    onOpenPage: (page: "key" | "sign-in" | "token") => void;
     onClose: () => void;
   };
 
-  let { connected, onSave, onForget, onOpenKeyPage, onClose }: Props = $props();
+  let { network, connected, onSave, onForget, onOpenPage, onClose }: Props = $props();
 
-  let key = $state("");
+  let secret = $state("");
   let busy = $state(false);
   let error = $state<string | null>(null);
   let input = $state<HTMLInputElement>();
 
+  const steam = $derived(network === "steam");
+
   const submit = async (event: SubmitEvent) => {
     event.preventDefault();
-    if (busy || key.trim() === "") {
+    if (busy || secret.trim() === "") {
       return;
     }
     busy = true;
     error = null;
     try {
-      await onSave(key);
+      await onSave(secret);
     } catch (failure) {
       error = String(failure);
     } finally {
@@ -52,35 +56,57 @@
 </script>
 
 <div class="backdrop" role="presentation" onclick={onClose}></div>
-<div class="dialog" role="dialog" aria-modal="true" aria-labelledby="steam-key-title" tabindex="-1" onkeydown={handleKeydown}>
-  <h2 id="steam-key-title">Connect Steam friends</h2>
-  <ol>
-    <li>
-      Get a free Web API key from Steam.
-      <button type="button" class="link" onclick={onOpenKeyPage}>Open the Steam key page</button>
-    </li>
-    <li>Paste it below. Make sure your friends list is public in your Steam privacy settings.</li>
-  </ol>
+<div class="dialog" role="dialog" aria-modal="true" aria-labelledby="connect-title" tabindex="-1" onkeydown={handleKeydown}>
+  {#if steam}
+    <h2 id="connect-title">Connect Steam friends</h2>
+    <ol>
+      <li>
+        Get a free Web API key from Steam.
+        <button type="button" class="link" onclick={() => onOpenPage("key")}>Open the Steam key page</button>
+      </li>
+      <li>Paste it below. Make sure your friends list is public in your Steam privacy settings.</li>
+    </ol>
+  {:else}
+    <h2 id="connect-title">Connect PlayStation friends</h2>
+    <ol>
+      <li>
+        Sign in to playstation.com in your browser.
+        <button type="button" class="link" onclick={() => onOpenPage("sign-in")}>Open playstation.com</button>
+      </li>
+      <li>
+        Then open Sony's token page and copy the <code>npsso</code> value it shows.
+        <button type="button" class="link" onclick={() => onOpenPage("token")}>Open the token page</button>
+      </li>
+      <li>Paste it below. Lounge uses it once to sign in, then only reads your friends list.</li>
+    </ol>
+  {/if}
 
   <form onsubmit={submit}>
-    <label for="steam-key">Steam Web API key</label>
+    <label for="connect-secret">{steam ? "Steam Web API key" : "NPSSO token"}</label>
     <input
-      id="steam-key"
+      id="connect-secret"
       bind:this={input}
-      bind:value={key}
+      bind:value={secret}
       type="password"
       autocomplete="off"
       spellcheck="false"
-      placeholder="32 characters"
-      aria-describedby="steam-key-note"
+      placeholder={steam ? "32 characters" : "64 characters"}
+      aria-describedby="connect-note"
       disabled={busy}
     />
-    <p id="steam-key-note" class="note">Lounge keeps this key in Windows Credential Manager, never in a file.</p>
+    <p id="connect-note" class="note">
+      {#if steam}
+        Lounge keeps this key in Windows Credential Manager, never in a file.
+      {:else}
+        Lounge swaps it for a sign-in that lasts about two months and keeps that in Windows Credential Manager, never in a file.
+        This uses PlayStation's unofficial app API, which Sony may change at any time.
+      {/if}
+    </p>
     {#if error}
       <p class="error" role="alert">{error}</p>
     {/if}
     <div class="buttons">
-      <button type="submit" class="primary" disabled={busy || key.trim() === ""}>{busy ? "Checking…" : "Save"}</button>
+      <button type="submit" class="primary" disabled={busy || secret.trim() === ""}>{busy ? "Checking…" : steam ? "Save" : "Connect"}</button>
       <button type="button" class="secondary" onclick={onClose}>Cancel</button>
       {#if connected}
         <button type="button" class="danger" onclick={forget} disabled={busy}>Disconnect</button>
@@ -102,7 +128,7 @@
     z-index: 31;
     left: 50%;
     top: 50%;
-    width: min(520px, calc(100vw - 32px));
+    width: min(540px, calc(100vw - 32px));
     padding: 28px;
     border-radius: 24px;
     background: #1c1c20;
@@ -127,6 +153,13 @@
     font-size: 15px;
     line-height: 1.45;
     color: var(--text-secondary);
+  }
+
+  code {
+    padding: 1px 5px;
+    border-radius: 5px;
+    background: rgba(255, 255, 255, 0.1);
+    font-size: 14px;
   }
 
   .link {
@@ -173,6 +206,7 @@
   .note {
     margin: 0;
     font-size: 13px;
+    line-height: 1.4;
     color: var(--text-tertiary);
   }
 

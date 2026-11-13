@@ -5,6 +5,7 @@ import {
   RepeatGate,
   buttonAction,
   familyOf,
+  isDualSense,
   stickDirection,
   type PadAction,
 } from "./gamepad-mapping";
@@ -16,6 +17,18 @@ describe("familyOf", () => {
 
   it("treats an Xbox controller as xbox", () => {
     expect(familyOf("Xbox 360 Controller (XInput STANDARD GAMEPAD)")).toBe("xbox");
+  });
+});
+
+describe("isDualSense", () => {
+  it("spots a DualSense by name or by its USB ids, over USB or Bluetooth", () => {
+    expect(isDualSense("DualSense Wireless Controller (STANDARD GAMEPAD Vendor: 054c Product: 0ce6)")).toBe(true);
+    expect(isDualSense("Wireless Controller (STANDARD GAMEPAD Vendor: 054c Product: 0df2)")).toBe(true);
+  });
+
+  it("leaves a DualShock 4 and other controllers to the browser", () => {
+    expect(isDualSense("Wireless Controller (STANDARD GAMEPAD Vendor: 054c Product: 09cc)")).toBe(false);
+    expect(isDualSense("Xbox 360 Controller (XInput STANDARD GAMEPAD)")).toBe(false);
   });
 });
 

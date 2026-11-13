@@ -22,6 +22,8 @@ pub struct Settings {
     pub lightbar: bool,
     #[serde(default)]
     pub quick_menu_shortcut: Option<String>,
+    #[serde(default)]
+    pub pinned_friends: BTreeSet<String>,
 }
 
 impl Default for Settings {
@@ -34,6 +36,7 @@ impl Default for Settings {
             sounds: true,
             lightbar: true,
             quick_menu_shortcut: None,
+            pinned_friends: BTreeSet::new(),
         }
     }
 }
@@ -97,6 +100,16 @@ pub fn set_toggle(path: &Path, toggle: Toggle, enabled: bool) -> Result<(), Stri
     save(path, &settings)
 }
 
+pub fn set_friend_pinned(path: &Path, friend_id: &str, pinned: bool) -> Result<(), String> {
+    let mut settings = load(path);
+    if pinned {
+        settings.pinned_friends.insert(friend_id.to_string());
+    } else {
+        settings.pinned_friends.remove(friend_id);
+    }
+    save(path, &settings)
+}
+
 pub fn set_quick_menu_shortcut(path: &Path, shortcut: Option<String>) -> Result<(), String> {
     let mut settings = load(path);
     settings.quick_menu_shortcut = shortcut;
@@ -147,6 +160,16 @@ mod tests {
         assert!(!settings.vibration);
         assert!(settings.show_friends);
         assert!(settings.hidden_games.contains("steam:730"));
+        let _ = fs::remove_dir_all(path.parent().unwrap());
+    }
+
+    #[test]
+    fn pins_and_unpins_a_friend() {
+        let path = temp_settings_path("pins");
+        set_friend_pinned(&path, "psn:123", true).unwrap();
+        set_friend_pinned(&path, "steam:7656", true).unwrap();
+        set_friend_pinned(&path, "psn:123", false).unwrap();
+        assert_eq!(load(&path).pinned_friends.into_iter().collect::<Vec<_>>(), ["steam:7656"]);
         let _ = fs::remove_dir_all(path.parent().unwrap());
     }
 

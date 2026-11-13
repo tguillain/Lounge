@@ -20,16 +20,26 @@ pub enum Presence {
     InGame,
     Online,
     Away,
+    Offline,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "kebab-case")]
+pub enum Network {
+    Steam,
+    Psn,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Friend {
-    pub steam_id: String,
+    pub id: String,
+    pub network: Network,
     pub name: String,
     pub avatar: Option<String>,
     pub presence: Presence,
     pub game: Option<String>,
+    pub platform: Option<String>,
     pub join_uri: Option<String>,
 }
 
@@ -125,7 +135,7 @@ fn fetch(key: &str) -> Result<Vec<Friend>, String> {
         let summaries: SummariesResponse = get_json(&format!("{API_BASE}/GetPlayerSummaries/v2/?key={key}&steamids={}", batch.join(",")))?;
         players.extend(summaries.response.players);
     }
-    Ok(online_friends(players))
+    Ok(steam_friends(players))
 }
 
 fn get_json<T: for<'de> Deserialize<'de>>(url: &str) -> Result<T, String> {
@@ -138,19 +148,20 @@ fn get_json<T: for<'de> Deserialize<'de>>(url: &str) -> Result<T, String> {
     }
 }
 
-pub fn online_friends(players: Vec<Player>) -> Vec<Friend> {
-    let mut friends: Vec<Friend> = players
-        .into_iter()
-        .filter(|player| player.personastate != STATE_OFFLINE || player.gameid.is_some())
-        .map(to_friend)
-        .collect();
-    friends.sort_by_key(|friend| (friend.presence, Reverse(friend.join_uri.is_some()), friend.name.to_lowercase()));
+pub fn steam_friends(players: Vec<Player>) -> Vec<Friend> {
+    let mut friends: Vec<Friend> = players.into_iter().map(to_friend).collect();
+    sort(&mut friends);
     friends
+}
+
+pub fn sort(friends: &mut [Friend]) {
+    friends.sort_by_key(|friend| (friend.presence, Reverse(friend.join_uri.is_some()), friend.name.to_lowercase()));
 }
 
 fn to_friend(player: Player) -> Friend {
     let presence = match (player.gameid.is_some(), player.personastate) {
         (true, _) => Presence::InGame,
+        (false, STATE_OFFLINE) => Presence::Offline,
         (false, 1 | 5 | 6) => Presence::Online,
         _ => Presence::Away,
     };
@@ -159,11 +170,13 @@ fn to_friend(player: Player) -> Friend {
         _ => None,
     };
     Friend {
-        steam_id: player.steamid,
+        id: format!("steam:{}", player.steamid),
+        network: Network::Steam,
         name: player.personaname,
         avatar: player.avatarmedium,
         presence,
         game: player.gameextrainfo,
+        platform: None,
         join_uri,
     }
 }
@@ -207,8 +220,8 @@ mod tests {
     }
 
     #[test]
-    fn keeps_only_online_friends_and_puts_joinable_games_first() {
-        let friends = online_friends(vec![
+    fn sorts_friends_by_presence_and_puts_joinable_games_first() {
+        let friends = steam_friends(vec![
             player("Zoe", 1, None, None),
             player("Bastien", 0, None, None),
             player("Kaori", 1, Some("Rocket League"), None),
@@ -216,9 +229,11 @@ mod tests {
             player("Nyx", 3, None, None),
         ]);
         let names: Vec<&str> = friends.iter().map(|friend| friend.name.as_str()).collect();
-        assert_eq!(names, ["Mathis", "Kaori", "Zoe", "Nyx"]);
+        assert_eq!(names, ["Mathis", "Kaori", "Zoe", "Nyx", "Bastien"]);
         assert_eq!(friends[0].join_uri.as_deref(), Some("steam://joinlobby/252950/109775/id-Mathis"));
+        assert_eq!(friends[0].id, "steam:id-Mathis");
         assert_eq!(friends[3].presence, Presence::Away);
+        assert_eq!(friends[4].presence, Presence::Offline);
     }
 
     #[test]

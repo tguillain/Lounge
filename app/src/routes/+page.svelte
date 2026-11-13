@@ -14,10 +14,12 @@
   import SearchKeyboard from "$lib/components/SearchKeyboard.svelte";
   import SettingsView from "$lib/components/SettingsView.svelte";
   import Shelf from "$lib/components/Shelf.svelte";
-  import SteamKeyDialog from "$lib/components/SteamKeyDialog.svelte";
+  import ConnectDialog from "$lib/components/ConnectDialog.svelte";
   import {
     backToGame,
     checkForUpdate,
+    connectPsn,
+    disconnectPsn,
     forgetSteamApiKey,
     getAudioOutputs,
     getPreferences,
@@ -29,6 +31,7 @@
     loadAchievements,
     loadFriends,
     loadGameDetails,
+    loadPsnFriends,
     loadLibrary,
     onGameSession,
     onOpenSettings,
@@ -36,6 +39,7 @@
     onSteamDownloads,
     onUpdateProgress,
     openGameFolder,
+    openPsnPage,
     openReleasesPage,
     openSteamApiKeyPage,
     pulseDualSense,
@@ -44,6 +48,7 @@
     releaseLightbar,
     saveSteamApiKey,
     setAudioOutput,
+    setFriendPinned,
     setGameHidden,
     setLightbar,
     setQuickMenuShortcut,
@@ -51,9 +56,11 @@
     setToggle,
     takeSettingsRequest,
     toggleFullscreen,
+    watchDualSense,
   } from "$lib/api";
   import { clockLabel, greeting, placeholderArt } from "$lib/format";
-  import { pulse, watchGamepads } from "$lib/input/gamepad";
+  import { friendsProblems, homeFriends, nothingConnected, readyFriends, stillLoading } from "$lib/friends";
+  import { pulse, updateDualSense, watchGamepads } from "$lib/input/gamepad";
   import type { InputMode, PadAction } from "$lib/input/gamepad-mapping";
   import {
     availableFilters,
@@ -79,6 +86,7 @@
     AudioOutput,
     DetailsResult,
     Friend,
+    FriendNetwork,
     FriendsResult,
     Game,
     LibraryState,
@@ -126,8 +134,10 @@
   let selectedIndex = $state(0);
   let homeZone = $state<"shelf" | "friends">("shelf");
   let friendsResult = $state<FriendsResult>({ status: "loading" });
+  let psnResult = $state<FriendsResult>({ status: "loading" });
   let friendIndex = $state(0);
-  let keyDialogOpen = $state(false);
+  let connectDialog = $state<FriendNetwork | null>(null);
+  const keyDialogOpen = $derived(connectDialog !== null);
 
   let libraryFilter = $state<LibraryFilter>("all");
   let librarySort = $state<LibrarySort>(DEFAULT_SORT);
@@ -185,8 +195,14 @@
   );
   const focusedLibraryGame = $derived<Game | null>(libraryGames[libraryIndex] ?? null);
 
-  const visibleFriends = $derived(friendsResult.status === "ready" ? friendsResult.friends.slice(0, VISIBLE_FRIENDS) : []);
-  const friendsNeedSetup = $derived(friendsResult.status === "not-configured" || friendsResult.status === "failed");
+  const friendResults = $derived({ steam: friendsResult, psn: psnResult });
+  const pinnedFriends = $derived(new Set(preferences?.pinnedFriends ?? []));
+  const allFriends = $derived(readyFriends(friendsResult, psnResult));
+  const visibleFriends = $derived(homeFriends(allFriends, pinnedFriends).slice(0, VISIBLE_FRIENDS));
+  const friendProblems = $derived(friendsProblems(friendResults));
+  const friendsLoading = $derived(stillLoading(friendResults));
+  const friendsNotConnected = $derived(nothingConnected(friendResults));
+  const friendsNeedSetup = $derived(friendsNotConnected || (visibleFriends.length === 0 && friendProblems.length > 0));
   const focusedFriend = $derived<Friend | null>(homeZone === "friends" ? (visibleFriends[friendIndex] ?? null) : null);
 
   const isBroken = (url: string) => brokenImages.has(url);
@@ -200,7 +216,7 @@
   const detailGame = $derived<Game | null>(detailId ? (allGames.find((game) => game.id === detailId) ?? null) : null);
   const shownDetails = $derived<DetailsResult>((detailId && detailsByGame.get(detailId)) || { status: "loading" });
   const detailFriends = $derived(
-    detailGame && friendsResult.status === "ready" ? friendsPlaying(friendsResult.friends, detailGame.name) : [],
+    detailGame ? friendsPlaying(allFriends, detailGame.name) : [],
   );
   const detailGallery = $derived(picturesOf(shownDetails.status === "ready" ? shownDetails : null));
 
@@ -281,26 +297,54 @@
     }
   };
 
+  const settle = (load: () => Promise<FriendsResult>): Promise<FriendsResult> =>
+    load().catch((error) => ({ status: "failed", message: String(error) }));
+
   const refreshFriends = async () => {
-    try {
-      friendsResult = await loadFriends();
-    } catch (error) {
-      friendsResult = { status: "failed", message: String(error) };
-    }
+    [friendsResult, psnResult] = await Promise.all([settle(loadFriends), settle(loadPsnFriends)]);
     friendIndex = Math.min(friendIndex, Math.max(0, visibleFriends.length - 1));
   };
 
   const saveKey = async (key: string) => {
     await saveSteamApiKey(key);
-    keyDialogOpen = false;
+    connectDialog = null;
     friendsResult = { status: "loading" };
     await refreshFriends();
   };
 
   const forgetKey = async () => {
     await forgetSteamApiKey();
-    keyDialogOpen = false;
+    connectDialog = null;
     friendsResult = { status: "not-configured" };
+  };
+
+  const savePsn = async (token: string) => {
+    await connectPsn(token);
+    connectDialog = null;
+    psnResult = { status: "loading" };
+    await refreshFriends();
+  };
+
+  const forgetPsn = async () => {
+    await disconnectPsn();
+    connectDialog = null;
+    psnResult = { status: "not-configured" };
+  };
+
+  const togglePin = async (friend: Friend) => {
+    if (!preferences) {
+      return;
+    }
+    const pinned = !pinnedFriends.has(friend.id);
+    try {
+      await setFriendPinned(friend.id, pinned);
+      const others = preferences.pinnedFriends.filter((id) => id !== friend.id);
+      preferences = { ...preferences, pinnedFriends: pinned ? [...others, friend.id] : others };
+      friendIndex = Math.max(0, visibleFriends.findIndex((shown) => shown.id === friend.id));
+      feedback();
+    } catch (error) {
+      launchError = `Couldn't ${pinned ? "pin" : "unpin"} ${friend.name}: ${error}`;
+    }
   };
 
   const closeLaunchOverlay = () => {
@@ -629,11 +673,14 @@
     }
   };
 
-  const steamKeyState = $derived<SteamKeyState>(
-    friendsResult.status === "loading" ? "unknown" : friendsResult.status === "not-configured" ? "missing" : "connected",
-  );
+  const connectionState = (result: FriendsResult): SteamKeyState =>
+    result.status === "loading" ? "unknown" : result.status === "not-configured" ? "missing" : "connected";
+  const steamKeyState = $derived(connectionState(friendsResult));
+  const psnState = $derived(connectionState(psnResult));
 
-  const rows = $derived<SettingsRow[]>(preferences ? settingsRows(preferences, steamKeyState, update, capturingShortcut) : []);
+  const rows = $derived<SettingsRow[]>(
+    preferences ? settingsRows(preferences, steamKeyState, update, capturingShortcut, psnState) : [],
+  );
 
   const saveShortcut = async (shortcut: string | null) => {
     if (!preferences) {
@@ -680,9 +727,14 @@
         flipSetting(row.toggle);
       }
     } else if (row.action === "steam-key") {
-      keyDialogOpen = true;
+      connectDialog = "steam";
     } else if (row.action === "remove-key") {
       forgetKey();
+      settingsIndex = Math.max(0, settingsIndex - 1);
+    } else if (row.action === "psn-connect") {
+      connectDialog = "psn";
+    } else if (row.action === "psn-disconnect") {
+      forgetPsn();
       settingsIndex = Math.max(0, settingsIndex - 1);
     } else if (row.action === "update") {
       if (row.inert) {
@@ -970,10 +1022,12 @@
       homeZone = "shelf";
     } else if (action === "confirm") {
       if (friendsNeedSetup) {
-        keyDialogOpen = true;
+        connectDialog = friendProblems[0]?.network ?? "steam";
       } else if (focusedFriend?.joinUri) {
         join(focusedFriend);
       }
+    } else if (action === "options" && focusedFriend) {
+      togglePin(focusedFriend);
     }
   };
 
@@ -1066,7 +1120,7 @@
   const runAction = (action: PadAction) => {
     if (keyDialogOpen) {
       if (action === "back") {
-        keyDialogOpen = false;
+        connectDialog = null;
       }
       return;
     }
@@ -1278,6 +1332,7 @@
         { action: "navigate", label: "Navigate" },
         ...(friendsNeedSetup ? [{ action: "confirm" as const, label: "Connect" }] : []),
         ...(focusedFriend?.joinUri ? [{ action: "confirm" as const, label: "Join" }] : []),
+        ...(focusedFriend ? [{ action: "options" as const, label: pinnedFriends.has(focusedFriend.id) ? "Unpin" : "Pin" }] : []),
         { action: "back", label: "Back to games" },
       ];
     }
@@ -1309,7 +1364,7 @@
     }, CLOCK_REFRESH_MS);
 
     const friendsTimer = setInterval(() => {
-      if (document.visibilityState === "visible" && showFriends && friendsResult.status === "ready") {
+      if (document.visibilityState === "visible" && showFriends && (friendsResult.status === "ready" || psnResult.status === "ready")) {
         refreshFriends();
       }
     }, FRIENDS_REFRESH_MS);
@@ -1319,6 +1374,8 @@
         lookForUpdate();
       }
     }, UPDATE_CHECK_MS);
+
+    const stopDualSense = watchDualSense(updateDualSense);
 
     const stopDownloads = onSteamDownloads((downloads) => {
       if (library.status !== "ready") {
@@ -1383,6 +1440,7 @@
       stopPowerButton.then((stop) => stop());
       stopOpenSettings.then((stop) => stop());
       stopDownloads.then((stop) => stop());
+      stopDualSense.then((stop) => stop());
       clearTimeout(launchTimer);
       stopGamepads();
       stopListening.then((stop) => stop());
@@ -1570,12 +1628,17 @@
         />
         {#if showFriends}
           <FriendsPanel
-            result={friendsResult}
-            focusedIndex={homeZone === "friends" ? friendIndex : null}
+            friends={visibleFriends}
+            pinned={pinnedFriends}
+            loading={friendsLoading}
+            needsSetup={friendsNotConnected}
+            problems={friendProblems}
+            focusedIndex={homeZone === "friends" && !friendsNeedSetup ? friendIndex : null}
             panelFocused={homeZone === "friends" && friendsNeedSetup}
-            onConnect={() => (keyDialogOpen = true)}
+            onConnect={(network) => (connectDialog = network)}
             onRetry={refreshFriends}
             onJoin={join}
+            onTogglePin={togglePin}
           />
         {/if}
       </div>
@@ -1626,13 +1689,15 @@
     />
   {/if}
 
-  {#if keyDialogOpen}
-    <SteamKeyDialog
-      connected={friendsResult.status !== "not-configured"}
-      onSave={saveKey}
-      onForget={forgetKey}
-      onOpenKeyPage={openSteamApiKeyPage}
-      onClose={() => (keyDialogOpen = false)}
+  {#if connectDialog}
+    {@const network = connectDialog}
+    <ConnectDialog
+      {network}
+      connected={(network === "steam" ? friendsResult : psnResult).status !== "not-configured"}
+      onSave={network === "steam" ? saveKey : savePsn}
+      onForget={network === "steam" ? forgetKey : forgetPsn}
+      onOpenPage={(page) => (page === "key" ? openSteamApiKeyPage() : openPsnPage(page))}
+      onClose={() => (connectDialog = null)}
     />
   {/if}
 

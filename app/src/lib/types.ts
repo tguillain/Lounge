@@ -33,14 +33,18 @@ export type Session = {
   game: Game | null;
 };
 
-export type Presence = "in-game" | "online" | "away";
+export type Presence = "in-game" | "online" | "away" | "offline";
+
+export type FriendNetwork = "steam" | "psn";
 
 export type Friend = {
-  steamId: string;
+  id: string;
+  network: FriendNetwork;
   name: string;
   avatar: string | null;
   presence: Presence;
   game: string | null;
+  platform: string | null;
   joinUri: string | null;
 };
 
@@ -64,6 +68,7 @@ export type Preferences = {
   sounds: boolean;
   lightbar: boolean;
   quickMenuShortcut: string | null;
+  pinnedFriends: string[];
   version: string;
   canUpdate: boolean;
 };

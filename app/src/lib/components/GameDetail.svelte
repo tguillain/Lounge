@@ -148,7 +148,7 @@
         <span class="stat-value">{friends.length > 0 ? friends.length : "None"}</span>
         {#if friends.length > 0}
           <span class="avatars" aria-label={friends.map((friend) => friend.name).join(", ")}>
-            {#each friends.slice(0, MAX_AVATARS) as friend (friend.steamId)}
+            {#each friends.slice(0, MAX_AVATARS) as friend (friend.id)}
               <span class="avatar" style:background={placeholderArt(friend.name)}>
                 {#if friend.avatar}
                   <img src={friend.avatar} alt="" />

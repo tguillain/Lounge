@@ -39,6 +39,10 @@ export const REPEAT_INTERVAL_MS = 110;
 
 export const familyOf = (gamepadId: string): ControllerFamily => (SONY_PATTERN.test(gamepadId) ? "playstation" : "xbox");
 
+const DUALSENSE_PATTERN = /dualsense|054c.*(0ce6|0df2)/i;
+
+export const isDualSense = (gamepadId: string): boolean => DUALSENSE_PATTERN.test(gamepadId);
+
 export const buttonAction = (index: number): PadAction | null => STANDARD_BUTTON_ACTIONS[index] ?? null;
 
 export const stickDirection = (x: number, y: number): PadAction | null => {

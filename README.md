@@ -33,12 +33,13 @@ Steam's Big Picture mode is heavy. Store launchers are noisy. Lounge is neither:
 - Full navigation with a **PS5 DualSense**, an Xbox pad, or keyboard and mouse. Switch any time.
 - On-screen hints follow what you're holding: ✕ ○ △ for PlayStation, A B Y for Xbox, keys for the keyboard.
 - Haptic tick as you move between games, and soft, low navigation sounds you can turn off.
-- The DualSense **light bar takes the colors of the selected game**, and its battery level sits next to the clock.
+- The DualSense **light bar takes the colors of the selected game**, and its battery level sits next to the clock, over USB or Bluetooth.
 
 ### 🏠 A home screen worth landing on
 - Full-bleed hero art and the game's official logo, straight from Steam's local cache.
 - A *Recently played* shelf sized to your screen, with whole cards centered and the neighbours peeking out evenly.
-- **Steam friends** online right now, with what they're playing and a one-press **Join**.
+- **Steam and PlayStation friends** online right now, with what they're playing (and on which console) and a one-press **Join** for Steam games.
+- **Pin** your closest friends with △: they stay at the top of the list, even when they're offline.
 - Steam installs and updates show their progress live on the game's card.
 
 ### 📚 A real library
@@ -93,6 +94,7 @@ Steam's Big Picture mode is heavy. Store launchers are noisy. Lounge is neither:
 | Open a game's page | ↓ on Home, ✕ in the Library | ↓ on Home, A in the Library | ↓ on Home, Enter in the Library |
 | Back | ○ | B | Esc |
 | Game options and achievements | △ | Y | Right-click |
+| Pin or unpin a friend | △ on a friend | Y on a friend | Right-click on a friend |
 | Search the library | □ | X | / or Ctrl+F |
 | Home ⇄ Library | L1 / R1 | LB / RB | Q / E |
 | Settings | Options | Menu | Tab |
@@ -117,6 +119,7 @@ Epic doesn't keep play time on your PC, so Lounge counts it itself: every Epic s
 - Everything about your library is read **locally**.
 - A game's page asks the Steam store for its public description, genres and screenshots, without a key or your account, and keeps the answer on disk for a week.
 - Steam friends and the full achievement lists are optional. They need a free Steam Web API key, which Lounge stores in **Windows Credential Manager**, never in a file or in this repo. Without it, achievements fall back to what Steam keeps on your PC.
+- PlayStation friends are optional too. You paste a sign-in token from Sony's own page once; Lounge swaps it for a sign-in that lasts about two months, keeps that in Windows Credential Manager, and only reads your friends list and their status. Sony doesn't offer a public API for this, so Lounge uses the one the PlayStation App uses, which Sony may change at any time.
 - Lounge only opens `steam://` and `com.epicgames.launcher://` launch links. Anything else is refused.
 
 ## Install
@@ -180,6 +183,7 @@ app/
    ├─ dualsense_output.rs    Rumble and light bar reports for the DualSense
    ├─ lightbar.rs            The light bar color of each game
    ├─ friends.rs             Steam friends via the Web API
+   ├─ psn.rs                 PlayStation friends via the PlayStation App's API
    ├─ achievements.rs        Steam achievements, from the Web API or Steam's cache
    ├─ details.rs             A game's store page, screenshots and install folder
    ├─ audio.rs, power.rs     Sound output, volume and mute; sleep, restart, shut down
@@ -188,7 +192,7 @@ app/
 ```
 
 - **Rust** does the heavy lifting: scanning stores, trimming and caching logos, reading the DualSense over HID, tracking the running game, and managing the window.
-- **Svelte** draws the interface and reads controllers through the Gamepad API while Lounge is on screen.
+- **Svelte** draws the interface and reads controllers through the Gamepad API while Lounge is on screen. The DualSense is the exception: Rust reads it over HID, because over Bluetooth Windows stops seeing it once it sends the full reports that carry its battery level.
 - They talk through a small set of Tauri commands and events.
 
 ## Roadmap
@@ -202,6 +206,7 @@ app/
 - [x] Session time and achievements of the running game in the Quick Menu
 - [x] A keyboard shortcut for the Quick Menu
 - [x] A page for every game, with its screenshots
+- [x] PlayStation friends, and pinned friends
 - [ ] GOG, EA, Ubisoft and Battle.net libraries, and adding any game by hand
 
 ## License

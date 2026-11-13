@@ -64,11 +64,28 @@ export const getSession = async (): Promise<Session | null> => {
   return invoke<Session | null>("get_session");
 };
 
+const previewFriend = (id: string, name: string, presence: Friend["presence"], game: string | null = null, joinUri: string | null = null): Friend => ({
+  id: `steam:${id}`,
+  network: "steam",
+  name,
+  avatar: null,
+  presence,
+  game,
+  platform: null,
+  joinUri,
+});
+
 const previewFriends: Friend[] = [
-  { steamId: "1", name: "Kaori", avatar: null, presence: "in-game", game: "Rocket League", joinUri: "steam://joinlobby/0/0/1" },
-  { steamId: "2", name: "Mathis_R", avatar: null, presence: "in-game", game: "Counter-Strike 2", joinUri: null },
-  { steamId: "3", name: "Nyx", avatar: null, presence: "online", game: null, joinUri: null },
-  { steamId: "4", name: "Bastien", avatar: null, presence: "away", game: null, joinUri: null },
+  previewFriend("1", "Kaori", "in-game", "Rocket League", "steam://joinlobby/0/0/1"),
+  previewFriend("2", "Mathis_R", "in-game", "Counter-Strike 2"),
+  previewFriend("3", "Nyx", "online"),
+  previewFriend("4", "Bastien", "away"),
+  previewFriend("5", "Lou", "offline"),
+];
+
+const previewPsnFriends: Friend[] = [
+  { id: "psn:1", network: "psn", name: "Hakoom_PS", avatar: null, presence: "in-game", game: "Astro Bot", platform: "PS5", joinUri: null },
+  { id: "psn:2", network: "psn", name: "Jade-77", avatar: null, presence: "offline", game: null, platform: null, joinUri: null },
 ];
 
 export const loadFriends = async (): Promise<FriendsResult> => {
@@ -76,6 +93,41 @@ export const loadFriends = async (): Promise<FriendsResult> => {
     return { status: "ready", friends: previewFriends };
   }
   return invoke<FriendsResult>("get_friends");
+};
+
+export const loadPsnFriends = async (): Promise<FriendsResult> => {
+  if (!runsInTauri) {
+    return { status: "ready", friends: previewPsnFriends };
+  }
+  return invoke<FriendsResult>("get_psn_friends");
+};
+
+export const connectPsn = async (token: string): Promise<void> => {
+  if (runsInTauri) {
+    await invoke("connect_psn", { token });
+  }
+};
+
+export const disconnectPsn = async (): Promise<void> => {
+  if (runsInTauri) {
+    await invoke("disconnect_psn");
+  }
+};
+
+export const openPsnPage = async (page: "sign-in" | "token"): Promise<void> => {
+  if (runsInTauri) {
+    await invoke("open_psn_page", { page });
+  }
+};
+
+export const setFriendPinned = async (friendId: string, pinned: boolean): Promise<void> => {
+  if (!runsInTauri) {
+    previewPreferences.pinnedFriends = pinned
+      ? [...previewPreferences.pinnedFriends, friendId]
+      : previewPreferences.pinnedFriends.filter((id) => id !== friendId);
+    return;
+  }
+  await invoke("set_friend_pinned", { friendId, pinned });
 };
 
 export const loadAchievements = async (game: Game): Promise<AchievementsResult> => {
@@ -141,6 +193,21 @@ export const onControllerAction = async (handle: (action: PadAction) => void): P
   return getCurrentWebviewWindow().listen<PadAction>("pad-action", (event) => handle(event.payload));
 };
 
+export type DualSenseUpdate = { readByLounge?: boolean; held?: PadAction[] };
+
+export const watchDualSense = async (handle: (update: DualSenseUpdate) => void): Promise<() => void> => {
+  if (!runsInTauri) {
+    return () => {};
+  }
+  const stopConnected = await listen<boolean>("dualsense-connected", (event) => handle({ readByLounge: event.payload }));
+  const stopHeld = await getCurrentWebviewWindow().listen<PadAction[]>("dualsense-held", (event) => handle({ held: event.payload }));
+  handle({ readByLounge: await invoke<boolean>("is_dualsense_read_by_lounge") });
+  return () => {
+    stopConnected();
+    stopHeld();
+  };
+};
+
 export const toggleFullscreen = async (): Promise<void> => {
   if (!runsInTauri) {
     return;
@@ -158,6 +225,7 @@ const previewPreferences: Preferences = {
   sounds: true,
   lightbar: true,
   quickMenuShortcut: null,
+  pinnedFriends: ["psn:2"],
   version: "0.1.13",
   canUpdate: true,
 };
