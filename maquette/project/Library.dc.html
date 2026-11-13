@@ -32,9 +32,9 @@ a{color:#F5F5F7;text-decoration:none}a:hover{color:#FFFFFF}
         <a href="#" style="padding: 10px 22px; border-radius: 999px; font-size: 15px; font-weight: 500; color: #F5F5F7">Captures</a>
       </nav>
       <div style="display: flex; align-items: center; justify-content: flex-end; gap: 18px">
-        <button type="button" aria-label="Rechercher" style="width: 44px; height: 44px; border-radius: 999px; border: 1px solid rgba(255,255,255,.14); background: rgba(255,255,255,.1); color: #F5F5F7; display: flex; align-items: center; justify-content: center; cursor: pointer; padding: 0">
+        <a href="Search.dc.html" aria-label="Rechercher" style="width: 44px; height: 44px; box-sizing: border-box; border-radius: 999px; border: 1px solid rgba(255,255,255,.14); background: rgba(255,255,255,.1); color: #F5F5F7; display: flex; align-items: center; justify-content: center">
           <svg aria-hidden="true" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"></circle><path d="M20 20l-3.5-3.5"></path></svg>
-        </button>
+        </a>
         <a href="Settings.dc.html" aria-label="Réglages" style="width: 44px; height: 44px; box-sizing: border-box; border-radius: 999px; border: 1px solid rgba(255,255,255,.14); background: rgba(255,255,255,.1); color: #F5F5F7; display: flex; align-items: center; justify-content: center">
           <svg aria-hidden="true" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"></path></svg>
         </a>
@@ -65,6 +65,13 @@ a{color:#F5F5F7;text-decoration:none}a:hover{color:#FFFFFF}
           <span style="aspect-ratio: 2 / 3; border-radius: 14px; position: relative; overflow: hidden; display: flex; align-items: flex-end; justify-content: center; background: {{item.art}}; box-shadow: {{item.ring}}">
             <span aria-hidden="true" style="position: absolute; inset: 0; background: linear-gradient(0deg, rgba(0,0,0,.55) 0%, rgba(0,0,0,0) 50%)"></span>
             <span style="position: relative; padding: 22px 14px; text-align: center; line-height: 1.05; color: #FFFFFF; font-family: {{item.font}}; font-size: {{item.size}}; font-weight: {{item.weight}}; font-style: {{item.fs}}; text-transform: {{item.tt}}; letter-spacing: {{item.ls}}">{{item.title}}</span>
+            <sc-if value="{{item.downloading}}" hint-placeholder-val="{{ false }}">
+              <span style="position: absolute; top: 10px; left: 10px; display: flex; align-items: center; gap: 6px; padding: 4px 10px; border-radius: 999px; background: rgba(10,10,12,.85); font-size: 12px; font-weight: 600; white-space: nowrap; font-variant-numeric: tabular-nums; color: {{item.badgeFg}}">
+                <svg aria-hidden="true" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M12 4v11M7 10l5 5 5-5M5 20h14"></path></svg>
+                {{item.download}}
+              </span>
+              <span aria-hidden="true" style="position: absolute; left: 0; right: 0; bottom: 0; height: 5px; background: rgba(10,10,12,.7)"><span style="display: block; height: 100%; width: {{item.percent}}; background: {{item.barBg}}"></span></span>
+            </sc-if>
           </span>
           <span style="display: flex; flex-direction: column; gap: 3px">
             <span style="font-size: 15px; font-weight: 600; color: #F5F5F7">{{item.title}}</span>
@@ -113,8 +120,8 @@ class Component extends DCLogic {
       { title: 'Neon Drift', lf: 'orbitron', platform: 'Epic Games', hours: '12 h', c: ['#FF3D9A', '#2DD4FF', '#1A0B2E', '#07040F'] },
       { title: 'Les Abysses', lf: 'fraunces', platform: 'Steam', hours: '21 h', c: ['#1FC8B4', '#1D4ED8', '#04202A', '#020A10'] },
       { title: 'Forteresse Nord', lf: 'bebas', platform: 'Steam', hours: '56 h', c: ['#CFE8FF', '#5B8DEF', '#14243D', '#0A111C'] },
-      { title: 'Verdure', lf: 'syne', platform: 'Steam', hours: '8 h', c: ['#9BE15D', '#1E7A46', '#0C2416', '#06110A'] },
-      { title: 'Sillage', lf: 'unbounded', platform: 'Steam', hours: '5 h', c: ['#F5C451', '#7C3AED', '#1E1035', '#0C0716'] },
+      { title: 'Verdure', lf: 'syne', platform: 'Steam', hours: '8 h', c: ['#9BE15D', '#1E7A46', '#0C2416', '#06110A'], dl: { label: 'Mise à jour 42 %', percent: 42, active: true } },
+      { title: 'Sillage', lf: 'unbounded', platform: 'Steam', hours: '5 h', c: ['#F5C451', '#7C3AED', '#1E1035', '#0C0716'], dl: { label: 'Téléchargement en pause', percent: 68, active: false } },
       { title: 'Atelier 9', lf: 'rubik', platform: 'Steam', hours: '3 h', c: ['#FFE14D', '#FF8A00', '#2B2205', '#0F0C03'] },
       { title: 'Orbite', lf: 'audiowide', platform: 'Steam', hours: '17 h', c: ['#8B9CFF', '#3B1FA6', '#0E0B2B', '#05040F'] },
       { title: 'Basalte', lf: 'bebas', platform: 'Steam', hours: '29 h', c: ['#FF4D4D', '#3A3A3C', '#1C1C1E', '#0A0A0A'] },
@@ -166,6 +173,11 @@ class Component extends DCLogic {
         hours: g.hours,
         art: this.art(g.c),
         ring: i === 0 ? '0 0 0 3px #0A0A0C, 0 0 0 6px #F5F5F7, 0 20px 40px rgba(0,0,0,.55)' : '0 8px 24px rgba(0,0,0,.4)',
+        downloading: !!g.dl,
+        download: g.dl ? g.dl.label : '',
+        percent: g.dl ? g.dl.percent + '%' : '0%',
+        badgeFg: g.dl && !g.dl.active ? '#8E8E93' : '#F5F5F7',
+        barBg: g.dl && !g.dl.active ? '#8E8E93' : '#F5F5F7',
         font: l.font, weight: l.weight, tt: l.tt, ls: l.ls, fs: l.fs,
         size: Math.round(24 * l.k) + 'px'
       };

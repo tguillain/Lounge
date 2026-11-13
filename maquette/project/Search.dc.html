@@ -1,0 +1,156 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<title>Launcher — Recherche</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&amp;family=Cinzel:wght@700&amp;family=Bebas+Neue&amp;family=Audiowide&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0;background:#0A0A0C}
+a{color:#F5F5F7;text-decoration:none}a:hover{color:#FFFFFF}
+</style>
+</helmet>
+<div style="width: 1440px; height: 900px; position: relative; overflow: hidden; background: #0A0A0C; color: #F5F5F7; font-family: Inter, -apple-system, 'Segoe UI', sans-serif">
+  <div style="position: relative; height: 100%; box-sizing: border-box; padding: 36px 64px 0; display: flex; flex-direction: column">
+
+    <header style="display: grid; grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr); align-items: center; gap: 24px">
+      <div style="display: flex; align-items: center; gap: 14px">
+        <span aria-hidden="true" style="width: 44px; height: 44px; box-sizing: border-box; border-radius: 999px; border: 1px solid rgba(255,255,255,.14); background: rgba(255,255,255,.1); display: flex; align-items: center; justify-content: center">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round"><circle cx="12" cy="8" r="4"></circle><path d="M4 21a8 8 0 0 1 16 0"></path></svg>
+        </span>
+        <span style="font-size: 17px; font-weight: 600; letter-spacing: -0.01em">Bonsoir</span>
+      </div>
+      <nav aria-label="Navigation principale" style="display: flex; gap: 4px; padding: 5px; border-radius: 999px; background: rgba(255,255,255,.08); border: 1px solid rgba(255,255,255,.08)">
+        <a href="Main.dc.html" style="padding: 10px 22px; border-radius: 999px; font-size: 15px; font-weight: 500; color: #F5F5F7">Accueil</a>
+        <a href="Library.dc.html" aria-current="page" style="padding: 10px 22px; border-radius: 999px; background: #F5F5F7; color: #0A0A0C; font-size: 15px; font-weight: 600">Bibliothèque</a>
+      </nav>
+      <div style="display: flex; align-items: center; justify-content: flex-end">
+        <span style="font-size: 17px; font-weight: 600; font-variant-numeric: tabular-nums">21:47</span>
+      </div>
+    </header>
+
+    <div style="display: flex; align-items: baseline; gap: 16px; margin-top: 44px">
+      <h1 style="margin: 0; font-size: 48px; font-weight: 700; letter-spacing: -0.03em">Bibliothèque</h1>
+      <span style="font-size: 17px; color: #AEAEB2">3 jeux</span>
+      <a href="Library.dc.html" aria-label="Effacer la recherche" style="align-self: center; height: 34px; padding: 0 14px; box-sizing: border-box; border-radius: 999px; background: rgba(255,255,255,.12); border: 1px solid rgba(255,255,255,.16); display: flex; align-items: center; gap: 8px; font-size: 15px; font-weight: 600">
+        « or »
+        <svg aria-hidden="true" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"></path></svg>
+      </a>
+    </div>
+
+    <div style="display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 32px 24px; margin-top: 32px; opacity: .55">
+      <sc-for list="{{games}}" as="item" hint-placeholder-count="3">
+        <a href="GameDetail.dc.html" style="display: flex; flex-direction: column; gap: 12px">
+          <span style="aspect-ratio: 2 / 3; border-radius: 14px; position: relative; overflow: hidden; display: flex; align-items: flex-end; justify-content: center; background: {{item.art}}; box-shadow: 0 8px 24px rgba(0,0,0,.4)">
+            <span aria-hidden="true" style="position: absolute; inset: 0; background: linear-gradient(0deg, rgba(0,0,0,.55) 0%, rgba(0,0,0,0) 50%)"></span>
+            <span style="position: relative; padding: 22px 14px; text-align: center; line-height: 1.05; color: #FFFFFF; font-family: {{item.font}}; font-size: {{item.size}}; font-weight: {{item.weight}}; text-transform: uppercase; letter-spacing: {{item.ls}}">{{item.title}}</span>
+          </span>
+          <span style="display: flex; flex-direction: column; gap: 3px">
+            <span style="font-size: 15px; font-weight: 600; color: #F5F5F7">{{item.title}}</span>
+            <span style="font-size: 13px; color: #AEAEB2">{{item.platform}} · {{item.hours}}</span>
+          </span>
+        </a>
+      </sc-for>
+    </div>
+  </div>
+
+  <section role="dialog" aria-label="Rechercher dans la bibliothèque" style="position: absolute; left: 50%; bottom: 72px; transform: translateX(-50%); width: 760px; box-sizing: border-box; padding: 18px; border-radius: 26px; background: rgba(28,28,32,.94); border: 1px solid rgba(255,255,255,.12); box-shadow: 0 30px 80px rgba(0,0,0,.6)">
+    <div style="height: 56px; padding: 0 18px; box-sizing: border-box; border-radius: 16px; background: rgba(255,255,255,.08); display: flex; align-items: center; gap: 12px; color: #8E8E93">
+      <svg aria-hidden="true" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><circle cx="11" cy="11" r="7"></circle><path d="M20 20l-3.5-3.5"></path></svg>
+      <span style="flex: 1; font-size: 22px; font-weight: 600; color: #F5F5F7">or<span aria-hidden="true" style="display: inline-block; width: 2px; height: 24px; margin-left: 2px; vertical-align: -4px; background: #F5F5F7"></span></span>
+      <span style="font-size: 14px; font-variant-numeric: tabular-nums">3 jeux</span>
+    </div>
+    <div style="display: grid; grid-template-columns: repeat(10, 1fr); gap: 8px; margin-top: 14px">
+      <sc-for list="{{keys}}" as="k" hint-placeholder-count="38">
+        <span style="height: 52px; border-radius: 12px; display: flex; align-items: center; justify-content: center; font-size: {{k.size}}; font-weight: 600; grid-column: {{k.column}}; grid-row: {{k.row}}; background: {{k.bg}}; color: {{k.fg}}; transform: {{k.scale}}">{{k.label}}</span>
+      </sc-for>
+    </div>
+  </section>
+
+  <p style="position: absolute; left: 64px; bottom: 26px; margin: 0; font-size: 13px; color: #8E8E93">□ ouvre la recherche · elle ignore les accents et comprend les initiales : « cs2 » trouve Counter-Strike 2</p>
+  <footer aria-label="Commandes" style="position: absolute; right: 64px; bottom: 22px; display: flex; gap: 24px; font-size: 14px; color: #AEAEB2">
+    <sc-for list="{{hints}}" as="h" hint-placeholder-count="4">
+      <span style="display: flex; align-items: center; gap: 8px">
+        <sc-if value="{{h.isShape}}" hint-placeholder-val="{{ false }}">
+          <span style="width: 24px; height: 24px; box-sizing: border-box; border-radius: 999px; border: 1.5px solid #8E8E93; display: flex; align-items: center; justify-content: center; color: #F5F5F7"><svg aria-hidden="true" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="{{h.path}}"></path></svg></span>
+        </sc-if>
+        <sc-if value="{{h.isLetter}}" hint-placeholder-val="{{ true }}">
+          <span style="width: 24px; height: 24px; box-sizing: border-box; border-radius: 999px; border: 1.5px solid #8E8E93; display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 700; color: #F5F5F7">{{h.text}}</span>
+        </sc-if>
+        <sc-if value="{{h.isKey}}" hint-placeholder-val="{{ false }}">
+          <span style="min-width: 24px; height: 24px; box-sizing: border-box; padding: 0 8px; border-radius: {{h.radius}}; border: 1.5px solid #8E8E93; border-bottom-width: 3px; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 600; color: #F5F5F7">{{h.text}}</span>
+        </sc-if>
+        <span>{{h.label}}</span>
+      </span>
+    </sc-for>
+  </footer>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"input":{"editor":"enum","options":["PlayStation","Xbox","Clavier / souris"],"default":"PlayStation"},"$preview":{"width":1440,"height":900}}'>
+class Component extends DCLogic {
+  art(c) {
+    return 'radial-gradient(90% 70% at 70% 18%, ' + c[0] + ' 0%, transparent 70%), radial-gradient(100% 80% at 10% 100%, ' + c[1] + ' 0%, transparent 70%), linear-gradient(170deg, ' + c[2] + ' 0%, ' + c[3] + ' 100%)';
+  }
+  keyboard() {
+    const chars = (s) => s.split('').map((c) => ({ label: c.toUpperCase(), span: 1, small: false }));
+    const rows = [
+      chars('1234567890'),
+      chars('qwertyuiop'),
+      chars('asdfghjkl').concat([{ label: '⌫', span: 1, small: false }]),
+      chars('zxcvbnm').concat([{ label: 'Espace', span: 2, small: true }, { label: 'OK', span: 1, small: true, done: true }])
+    ];
+    const keys = [];
+    rows.forEach((row, r) => {
+      let column = 1;
+      row.forEach((k) => {
+        const focused = r === 1 && k.label === 'R';
+        keys.push({
+          label: k.label,
+          row: String(r + 1),
+          column: column + ' / span ' + k.span,
+          size: k.small ? '15px' : '18px',
+          bg: focused ? '#F5F5F7' : k.done ? 'rgba(255,255,255,.16)' : 'rgba(255,255,255,.07)',
+          fg: focused ? '#0A0A0C' : '#F5F5F7',
+          scale: focused ? 'scale(1.06)' : 'none'
+        });
+        column += k.span;
+      });
+    });
+    return keys;
+  }
+  hints(input, actions) {
+    const shape = (p) => ({ kind: 'shape', path: p });
+    const letter = (t) => ({ kind: 'letter', text: t });
+    const key = (t, r) => ({ kind: 'key', text: t, radius: r || '6px' });
+    const maps = {
+      'PlayStation': { confirm: shape('M6 6l12 12M18 6L6 18'), back: shape('M5 12a7 7 0 1 0 14 0a7 7 0 1 0 -14 0'), search: shape('M6 6h12v12H6z'), menu: key('Options', '999px') },
+      'Xbox': { confirm: letter('A'), back: letter('B'), search: letter('X'), menu: letter('≡') },
+      'Clavier / souris': { confirm: key('Entrée'), back: key('Échap'), search: key('⌫'), menu: key('Tab') }
+    };
+    const map = maps[input] || maps['PlayStation'];
+    return actions.map((a) => {
+      const g = map[a[0]];
+      return { label: a[1], isShape: g.kind === 'shape', isLetter: g.kind === 'letter', isKey: g.kind === 'key', path: g.path || '', text: g.text || '', radius: g.radius || '6px' };
+    });
+  }
+  renderVals() {
+    const list = [
+      { title: 'Horizon de Cendres', font: 'Cinzel, serif', weight: '700', ls: '0.04em', k: 0.82, platform: 'Steam', hours: '34 h', c: ['#FF7A2F', '#B3261E', '#2A0E0A', '#120807'] },
+      { title: 'Forteresse Nord', font: "'Bebas Neue', sans-serif", weight: '400', ls: '0.04em', k: 1.15, platform: 'Steam', hours: '56 h', c: ['#CFE8FF', '#5B8DEF', '#14243D', '#0A111C'] },
+      { title: 'Orbite', font: 'Audiowide, sans-serif', weight: '400', ls: '0.04em', k: 0.9, platform: 'Steam', hours: '17 h', c: ['#8B9CFF', '#3B1FA6', '#0E0B2B', '#05040F'] }
+    ];
+    return {
+      games: list.map((g) => ({ title: g.title, platform: g.platform, hours: g.hours, art: this.art(g.c), font: g.font, weight: g.weight, ls: g.ls, size: Math.round(24 * g.k) + 'px' })),
+      keys: this.keyboard(),
+      hints: this.hints(this.props.input ?? 'PlayStation', [['confirm', 'Taper'], ['search', 'Effacer'], ['menu', 'Terminé'], ['back', 'Fermer']])
+    };
+  }
+}
+</script>
+</body>
+</html>

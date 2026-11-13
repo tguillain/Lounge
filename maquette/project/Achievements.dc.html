@@ -1,0 +1,140 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<title>Launcher — Succès</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0;background:#0A0A0C}
+a{color:#F5F5F7;text-decoration:none}a:hover{color:#FFFFFF}
+</style>
+</helmet>
+<div style="width: 1440px; height: 900px; position: relative; overflow: hidden; background: #0A0A0C; color: #F5F5F7; font-family: Inter, -apple-system, 'Segoe UI', sans-serif">
+  <div aria-hidden="true" style="position: absolute; inset: 0; background: radial-gradient(45% 60% at 80% 0%, #FF7A2F33 0%, transparent 70%), radial-gradient(40% 50% at 10% 100%, #B3261E26 0%, transparent 70%)"></div>
+
+  <div style="position: relative; height: 100%; box-sizing: border-box; padding: 36px 64px 0; display: flex; flex-direction: column">
+    <header style="display: flex; align-items: center; justify-content: space-between">
+      <a href="GameDetail.dc.html" style="height: 44px; padding: 0 18px 0 12px; box-sizing: border-box; border-radius: 999px; background: rgba(255,255,255,.1); border: 1px solid rgba(255,255,255,.14); display: flex; align-items: center; gap: 6px; font-size: 15px; font-weight: 500">
+        <svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 5l-7 7 7 7"></path></svg>
+        Fiche jeu
+      </a>
+      <span style="font-size: 13px; color: #8E8E93">S'ouvre depuis la fiche du jeu, ou avec △ sur n'importe quel jeu Steam</span>
+      <span style="font-size: 17px; font-weight: 600; font-variant-numeric: tabular-nums">21:47</span>
+    </header>
+
+    <section aria-label="Succès" style="width: 900px; align-self: center; margin-top: 36px; display: flex; flex-direction: column; gap: 20px; min-height: 0; flex: 1">
+      <div style="display: flex; align-items: flex-end; justify-content: space-between; gap: 32px">
+        <div>
+          <p style="margin: 0 0 4px; font-size: 15px; font-weight: 600; color: #8E8E93">Horizon de Cendres</p>
+          <h1 style="margin: 0; font-size: 44px; font-weight: 700; letter-spacing: -0.03em">Succès</h1>
+        </div>
+        <div aria-label="18 sur 37 débloqués" style="width: 260px; display: flex; flex-direction: column; gap: 10px; padding-bottom: 6px">
+          <p style="margin: 0; text-align: right; font-size: 15px; color: #8E8E93; font-variant-numeric: tabular-nums"><strong style="font-size: 22px; color: #F5F5F7">18</strong> sur 37 · 48 %</p>
+          <span style="height: 6px; border-radius: 999px; background: rgba(255,255,255,.12); overflow: hidden"><span style="display: block; width: 48%; height: 100%; border-radius: inherit; background: #F5F5F7"></span></span>
+        </div>
+      </div>
+
+      <div style="border-radius: 18px; background: rgba(255,255,255,.06); border: 1px solid rgba(255,255,255,.08); overflow: hidden">
+        <sc-for list="{{rows}}" as="r" hint-placeholder-count="7">
+          <div style="min-height: 84px; box-sizing: border-box; padding: 12px 20px 12px 14px; display: flex; align-items: center; gap: 18px; border-top: {{r.divider}}; background: {{r.bg}}; color: {{r.fg}}">
+            <span aria-hidden="true" style="flex-shrink: 0; width: 60px; height: 60px; border-radius: 12px; display: flex; align-items: center; justify-content: center; background: {{r.icon}}; opacity: {{r.iconOpacity}}; color: {{r.iconFg}}">
+              <sc-if value="{{r.secret}}" hint-placeholder-val="{{ false }}">
+                <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="11" width="14" height="10" rx="2"></rect><path d="M8 11V8a4 4 0 0 1 8 0v3"></path></svg>
+              </sc-if>
+            </span>
+            <span style="flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 4px">
+              <span style="font-size: 17px; font-weight: 600; color: {{r.nameFg}}">{{r.name}}</span>
+              <span style="font-size: 14px; line-height: 1.35; color: {{r.sub}}">{{r.description}}</span>
+            </span>
+            <span style="flex-shrink: 0; display: flex; flex-direction: column; align-items: flex-end; gap: 4px; font-size: 13px; text-align: right">
+              <span style="font-weight: 600; color: {{r.whenFg}}">{{r.when}}</span>
+              <span style="font-weight: {{r.rarityWeight}}; color: {{r.rarityFg}}">{{r.rarity}}</span>
+            </span>
+          </div>
+        </sc-for>
+      </div>
+    </section>
+  </div>
+  <div aria-hidden="true" style="position: absolute; left: 0; right: 0; bottom: 0; height: 160px; background: linear-gradient(0deg, #0A0A0C 30%, rgba(10,10,12,0) 100%); pointer-events: none"></div>
+  <p style="position: absolute; left: 64px; bottom: 26px; margin: 0; font-size: 13px; color: #8E8E93">Derniers débloqués d'abord, puis du plus courant au plus rare, les cachés à la fin · rares (&lt; 10 %) en or</p>
+  <footer aria-label="Commandes" style="position: absolute; right: 64px; bottom: 22px; display: flex; gap: 28px; font-size: 14px; color: #AEAEB2">
+    <sc-for list="{{hints}}" as="h" hint-placeholder-count="2">
+      <span style="display: flex; align-items: center; gap: 8px">
+        <sc-if value="{{h.isShape}}" hint-placeholder-val="{{ false }}">
+          <span style="width: 24px; height: 24px; box-sizing: border-box; border-radius: 999px; border: 1.5px solid #8E8E93; display: flex; align-items: center; justify-content: center; color: #F5F5F7"><svg aria-hidden="true" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="{{h.path}}"></path></svg></span>
+        </sc-if>
+        <sc-if value="{{h.isLetter}}" hint-placeholder-val="{{ true }}">
+          <span style="width: 24px; height: 24px; box-sizing: border-box; border-radius: 999px; border: 1.5px solid #8E8E93; display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 700; color: #F5F5F7">{{h.text}}</span>
+        </sc-if>
+        <sc-if value="{{h.isKey}}" hint-placeholder-val="{{ false }}">
+          <span style="min-width: 24px; height: 24px; box-sizing: border-box; padding: 0 8px; border-radius: {{h.radius}}; border: 1.5px solid #8E8E93; border-bottom-width: 3px; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 600; color: #F5F5F7">{{h.text}}</span>
+        </sc-if>
+        <span>{{h.label}}</span>
+      </span>
+    </sc-for>
+  </footer>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"input":{"editor":"enum","options":["PlayStation","Xbox","Clavier / souris"],"default":"PlayStation"},"$preview":{"width":1440,"height":900}}'>
+class Component extends DCLogic {
+  hints(input, actions) {
+    const shape = (p) => ({ kind: 'shape', path: p });
+    const letter = (t) => ({ kind: 'letter', text: t });
+    const key = (t, r) => ({ kind: 'key', text: t, radius: r || '6px' });
+    const maps = {
+      'PlayStation': { confirm: shape('M6 6l12 12M18 6L6 18'), back: shape('M5 12a7 7 0 1 0 14 0a7 7 0 1 0 -14 0') },
+      'Xbox': { confirm: letter('A'), back: letter('B') },
+      'Clavier / souris': { confirm: key('Entrée'), back: key('Échap') }
+    };
+    const map = maps[input] || maps['PlayStation'];
+    return actions.map((a) => {
+      const g = map[a[0]];
+      return { label: a[1], isShape: g.kind === 'shape', isLetter: g.kind === 'letter', isKey: g.kind === 'key', path: g.path || '', text: g.text || '', radius: g.radius || '6px' };
+    });
+  }
+  renderVals() {
+    const list = [
+      { name: 'Premier feu', description: 'Allumer un feu de camp sur la plage du crash.', when: 'Débloqué le 12 nov. 2026', rarity: '71 % des joueurs', icon: ['#FF7A2F', '#7A1E0E'] },
+      { name: 'Cœur de lave', description: 'Survivre à trois éruptions sans quitter le volcan.', when: 'Débloqué le 9 nov. 2026', rarity: 'Rare · 4,2 % des joueurs', rare: true, icon: ['#FFD60A', '#B3261E'] },
+      { name: 'Cartographe amateur', description: "Révéler toutes les zones de l'île.", when: 'Débloqué le 2 nov. 2026', rarity: '38 % des joueurs', icon: ['#E9D8A6', '#94775A'] },
+      { name: 'Forgeron', description: 'Fabriquer une arme en obsidienne.', rarity: '52 % des joueurs', locked: true, icon: ['#8E8E93', '#3A3A3C'] },
+      { name: 'Dernier survivant', description: 'Terminer le jeu sans mourir.', rarity: 'Rare · 0,8 % des joueurs', rare: true, locked: true, icon: ['#8E8E93', '#3A3A3C'] },
+      { name: 'Collectionneur', description: 'Trouver les 40 reliques.', rarity: 'Moins de 0,1 % des joueurs', rare: true, locked: true, icon: ['#8E8E93', '#3A3A3C'] },
+      { name: 'Succès caché', description: 'Sélectionne-le pour le révéler.', rarity: '19 % des joueurs', locked: true, secret: true, focused: true }
+    ];
+    const rows = list.map((a, i) => {
+      const f = !!a.focused;
+      return {
+        name: a.name,
+        description: a.description,
+        when: a.when || '',
+        rarity: a.rarity,
+        secret: !!a.secret,
+        divider: i === 0 || f || list[i - 1].focused ? '0' : '1px solid rgba(255,255,255,.08)',
+        bg: f ? '#F5F5F7' : 'transparent',
+        fg: f ? '#0A0A0C' : '#F5F5F7',
+        nameFg: f ? '#0A0A0C' : a.locked ? '#D1D1D6' : '#F5F5F7',
+        sub: f ? 'rgba(10,10,12,.6)' : '#8E8E93',
+        whenFg: f ? '#1F8A3C' : '#7EE2A0',
+        rarityFg: a.rare ? (f ? '#9A6B00' : '#FFD60A') : f ? 'rgba(10,10,12,.6)' : '#8E8E93',
+        rarityWeight: a.rare ? '600' : '400',
+        icon: a.secret ? (f ? 'rgba(10,10,12,.08)' : 'rgba(255,255,255,.08)') : 'radial-gradient(70% 70% at 30% 30%, ' + a.icon[0] + ' 0%, ' + a.icon[1] + ' 100%)',
+        iconOpacity: a.locked && !a.secret ? '.45' : '1',
+        iconFg: f ? 'rgba(10,10,12,.55)' : '#8E8E93'
+      };
+    });
+    return {
+      rows: rows,
+      hints: this.hints(this.props.input ?? 'PlayStation', [['confirm', 'Révéler'], ['back', 'Retour']])
+    };
+  }
+}
+</script>
+</body>
+</html>
