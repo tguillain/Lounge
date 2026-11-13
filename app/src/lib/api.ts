@@ -158,7 +158,7 @@ const previewPreferences: Preferences = {
   sounds: true,
   lightbar: true,
   quickMenuShortcut: null,
-  version: "0.1.12",
+  version: "0.1.13",
   canUpdate: true,
 };
 
