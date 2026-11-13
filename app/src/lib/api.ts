@@ -233,7 +233,7 @@ const previewPreferences: Preferences = {
   lightbar: true,
   quickMenuShortcut: null,
   pinnedFriends: ["psn:2"],
-  version: "0.1.14",
+  version: "0.1.15",
   canUpdate: true,
 };
 
