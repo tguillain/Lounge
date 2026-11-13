@@ -1,8 +1,10 @@
 mod achievements;
 mod audio;
 mod autostart;
+mod details;
 mod dualsense_output;
 mod epic;
+mod folder;
 mod focus;
 mod friends;
 mod game;
@@ -70,6 +72,41 @@ async fn get_achievements(app_id: u32) -> Result<achievements::AchievementsResul
     tauri::async_runtime::spawn_blocking(move || achievements::load(app_id))
         .await
         .map_err(|error| error.to_string())
+}
+
+fn steam_app_id(game_id: &str) -> Option<u32> {
+    game_id.strip_prefix("steam:")?.parse().ok()
+}
+
+fn store_cache_dir(app: &tauri::AppHandle) -> Option<PathBuf> {
+    let dir = app.path().app_cache_dir().ok()?.join("store");
+    std::fs::create_dir_all(&dir).ok()?;
+    Some(dir)
+}
+
+#[tauri::command]
+async fn get_game_details(app: tauri::AppHandle, game_id: String) -> Result<details::GameDetails, String> {
+    let Some(app_id) = steam_app_id(&game_id) else {
+        return Ok(details::GameDetails::default());
+    };
+    let cache = store_cache_dir(&app);
+    let found = tauri::async_runtime::spawn_blocking(move || details::load(app_id, cache.as_deref()))
+        .await
+        .map_err(|error| error.to_string())?;
+    if !found.screenshots.is_empty()
+        && let Some(dir) = details::screenshots_dir(app_id)
+    {
+        let _ = app.asset_protocol_scope().allow_directory(dir, true);
+    }
+    Ok(found)
+}
+
+#[tauri::command]
+fn open_game_folder(game_id: String) -> Result<(), String> {
+    let folder = steam_app_id(&game_id)
+        .and_then(steam::install_path)
+        .ok_or("Lounge couldn't find where this game is installed.")?;
+    folder::open(&folder)
 }
 
 #[tauri::command]
@@ -390,6 +427,8 @@ pub fn run() {
             get_session,
             get_friends,
             get_achievements,
+            get_game_details,
+            open_game_folder,
             save_steam_api_key,
             forget_steam_api_key,
             open_steam_api_key_page,

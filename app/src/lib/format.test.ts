@@ -1,7 +1,27 @@
 import { describe, expect, it } from "vitest";
-import { lastPlayedLabel, playTimeLabel, sizeLabel } from "./format";
+import { lastPlayedLabel, playTimeLabel, playTimeValue, sizeLabel, totalPlayTimeLabel } from "./format";
 
 const MINUTE_MS = 60_000;
+
+describe("playTimeValue", () => {
+  it("shows minutes, then hours with one decimal under 10, then whole hours", () => {
+    expect(playTimeValue(45)).toBe("45 min");
+    expect(playTimeValue(210)).toBe("3.5 h");
+    expect(playTimeValue(12_720)).toBe("212 h");
+    expect(playTimeValue(90_000)).toBe("1,500 h");
+  });
+
+  it("has nothing to show for a game never played or not tracked", () => {
+    expect(playTimeValue(0)).toBeNull();
+    expect(playTimeValue(null)).toBeNull();
+  });
+
+  it("keeps the longer label for the Library and the Quick Menu", () => {
+    expect(totalPlayTimeLabel(12_720)).toBe("212 h played");
+    expect(totalPlayTimeLabel(0)).toBe("Never played");
+    expect(totalPlayTimeLabel(null)).toBeNull();
+  });
+});
 
 describe("playTimeLabel", () => {
   it("says the game just started during the first minute", () => {

@@ -40,7 +40,7 @@
   oncontextmenu={handleContextMenu}
 >
   {#if showHeader && header}
-    <img src={header} alt="" draggable="false" loading="lazy" decoding="async" onerror={() => onBroken(header)} />
+    <img src={header} alt="" draggable="false" decoding="async" onerror={() => onBroken(header)} />
   {:else}
     <span class="name">{game.name}</span>
   {/if}

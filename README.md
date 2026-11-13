@@ -48,6 +48,12 @@ Steam's Big Picture mode is heavy. Store launchers are noisy. Lounge is neither:
 - **Search** with an on-screen keyboard: it ignores accents and punctuation and understands initials, so *cs2* finds Counter-Strike 2.
 - Hide the clutter (tools, demos, benchmarks) from Home without losing it.
 
+### 🗂️ A page for every game
+- Press **down** on Home, or **✕** on a game in the Library, to open its page: the art, the logo, its genres and a short description from the Steam store, the developer and the release date.
+- Your play time, when you last played, the friends playing it right now, and how much space it takes and where.
+- **Play**, your achievements, the game's folder and more options, one button each.
+- Your Steam screenshots of the game, or the store's when you haven't taken any, full screen with ✕.
+
 ### 🏆 Steam achievements
 - The Home screen shows how many achievements of the selected game you've unlocked.
 - The game's Options menu opens the full list: latest unlocks first, then locked ones from most to least common, with unlock dates, the share of players who have each one, and rare ones in gold.
@@ -84,6 +90,7 @@ Steam's Big Picture mode is heavy. Store launchers are noisy. Lounge is neither:
 |---|---|---|---|
 | Move | D-pad / left stick | D-pad / left stick | Arrow keys |
 | Play / select | ✕ | A | Enter / click |
+| Open a game's page | ↓ on Home, ✕ in the Library | ↓ on Home, A in the Library | ↓ on Home, Enter in the Library |
 | Back | ○ | B | Esc |
 | Game options and achievements | △ | Y | Right-click |
 | Search the library | □ | X | / or Ctrl+F |
@@ -106,6 +113,7 @@ Lounge reads what your launchers already keep on disk: Steam library folders, ap
 ## Privacy
 
 - Everything about your library is read **locally**.
+- A game's page asks the Steam store for its public description, genres and screenshots, without a key or your account, and keeps the answer on disk for a week.
 - Steam friends and the full achievement lists are optional. They need a free Steam Web API key, which Lounge stores in **Windows Credential Manager**, never in a file or in this repo. Without it, achievements fall back to what Steam keeps on your PC.
 - Lounge only opens `steam://` and `com.epicgames.launcher://` launch links. Anything else is refused.
 
@@ -169,6 +177,7 @@ app/
    ├─ lightbar.rs            The light bar color of each game
    ├─ friends.rs             Steam friends via the Web API
    ├─ achievements.rs        Steam achievements, from the Web API or Steam's cache
+   ├─ details.rs             A game's store page, screenshots and install folder
    ├─ audio.rs, power.rs     Sound output, volume and mute; sleep, restart, shut down
    ├─ update.rs              Signed self-updates
    └─ window.rs, autostart.rs Window lifecycle and Start with Windows
@@ -188,6 +197,7 @@ app/
 - [x] Control Center: sleep, restart, shut down and sound output
 - [x] Session time and achievements of the running game in the Quick Menu
 - [x] A keyboard shortcut for the Quick Menu
+- [x] A page for every game, with its screenshots
 - [ ] GOG, EA, Ubisoft and Battle.net libraries, and adding any game by hand
 
 ## License

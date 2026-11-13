@@ -6,7 +6,7 @@ import type { PadAction } from "./input/gamepad-mapping";
 import { hueOf } from "./format";
 import { previewAchievements, previewLibrary } from "./preview-library";
 import type { Downloads } from "./downloads";
-import type { AchievementsResult, AudioOutput, AvailableUpdate, Battery, Friend, FriendsResult, Game, Preferences, Session, Toggle, Volume } from "./types";
+import type { AchievementsResult, AudioOutput, AvailableUpdate, Battery, Friend, FriendsResult, Game, Preferences, Session, Toggle, Volume, GameDetails, Picture } from "./types";
 
 const runsInTauri = typeof window !== "undefined" && "__TAURI_INTERNALS__" in window;
 
@@ -274,6 +274,39 @@ export const setAudioOutput = async (output: AudioOutput): Promise<void> => {
     return;
   }
   await invoke("set_audio_output", { id: output.id });
+};
+
+const previewShot = (hue: number): Picture => {
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="900"><defs><radialGradient id="g" cx="30%" cy="30%" r="80%"><stop offset="0" stop-color="hsl(${hue} 80% 55%)"/><stop offset="1" stop-color="hsl(${hue + 40} 60% 8%)"/></radialGradient></defs><rect width="1600" height="900" fill="url(#g)"/></svg>`;
+  const url = `data:image/svg+xml,${encodeURIComponent(svg)}`;
+  return { thumbnail: url, full: url };
+};
+
+export const loadGameDetails = async (game: Game): Promise<GameDetails> => {
+  if (!runsInTauri) {
+    const hue = hueOf(game.name);
+    return {
+      store:
+        game.store === "steam"
+          ? {
+              description: `${game.name} drops you into a world that keeps changing around you. Explore, fight and build your way through a story shaped by your choices.`,
+              genres: ["Action", "Adventure", "RPG"],
+              developers: ["Lantern Works"],
+              releaseDate: "12 Mar 2024",
+              screenshots: [0, 50, 110, 200, 280].map((shift) => previewShot((hue + shift) % 360)),
+            }
+          : null,
+      installDir: game.store === "steam" ? `D:\\SteamLibrary\\steamapps\\common\\${game.name}` : null,
+      screenshots: [],
+    };
+  }
+  return invoke<GameDetails>("get_game_details", { gameId: game.id });
+};
+
+export const openGameFolder = async (game: Game): Promise<void> => {
+  if (runsInTauri) {
+    await invoke("open_game_folder", { gameId: game.id });
+  }
 };
 
 let previewVolume: Volume = { level: 70, muted: false };

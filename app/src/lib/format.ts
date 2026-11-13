@@ -42,18 +42,23 @@ export const sizeLabel = (bytes: number): string | null => {
   return `${gigabytes < 10 ? gigabytes.toFixed(1) : Math.round(gigabytes)} GB`;
 };
 
-export const totalPlayTimeLabel = (minutes: number | null): string | null => {
-  if (minutes === null) {
+export const playTimeValue = (minutes: number | null): string | null => {
+  if (minutes === null || minutes === 0) {
     return null;
   }
+  if (minutes < 60) {
+    return `${minutes} min`;
+  }
+  const hours = minutes / 60;
+  return `${hours < 10 ? hours.toFixed(1) : Math.round(hours).toLocaleString("en-US")} h`;
+};
+
+export const totalPlayTimeLabel = (minutes: number | null): string | null => {
   if (minutes === 0) {
     return "Never played";
   }
-  if (minutes < 60) {
-    return `${minutes} min played`;
-  }
-  const hours = minutes / 60;
-  return `${hours < 10 ? hours.toFixed(1) : Math.round(hours).toLocaleString("en-US")} h played`;
+  const value = playTimeValue(minutes);
+  return value ? `${value} played` : null;
 };
 
 export const greeting =(date: Date): string => {

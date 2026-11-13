@@ -2,6 +2,8 @@
   import { onMount } from "svelte";
   import { SvelteMap, SvelteSet } from "svelte/reactivity";
   import AchievementsView from "$lib/components/AchievementsView.svelte";
+  import GameDetail from "$lib/components/GameDetail.svelte";
+  import ScreenshotViewer from "$lib/components/ScreenshotViewer.svelte";
   import BatteryIndicator from "$lib/components/BatteryIndicator.svelte";
   import FriendsPanel from "$lib/components/FriendsPanel.svelte";
   import GameMenu, { type MenuItem } from "$lib/components/GameMenu.svelte";
@@ -26,12 +28,14 @@
     launchGame,
     loadAchievements,
     loadFriends,
+    loadGameDetails,
     loadLibrary,
     onGameSession,
     onOpenSettings,
     onPowerButton,
     onSteamDownloads,
     onUpdateProgress,
+    openGameFolder,
     openReleasesPage,
     openSteamApiKeyPage,
     pulseDualSense,
@@ -69,9 +73,22 @@
   import { POWER_CHOICES, confirmationOf, type PowerChoice } from "$lib/power";
   import { currentOutputLabel, markCurrent, outputTitle } from "$lib/audio";
   import { captureShortcut, shortcutLabel } from "$lib/shortcut";
-  import type { Achievement, AchievementsResult, AudioOutput, Friend, FriendsResult, Game, LibraryState, Preferences, Toggle, UpdateStatus } from "$lib/types";
+  import type {
+    Achievement,
+    AchievementsResult,
+    AudioOutput,
+    DetailsResult,
+    Friend,
+    FriendsResult,
+    Game,
+    LibraryState,
+    Preferences,
+    Toggle,
+    UpdateStatus,
+  } from "$lib/types";
+  import { FIRST_DETAIL_SPOT, detailActions, friendsPlaying, moveDetail, picturesOf, type DetailAction, type DetailSpot } from "$lib/game-detail";
 
-  type View = "home" | "library" | "settings" | "achievements";
+  type View = "home" | "library" | "settings" | "achievements" | "detail";
 
   const KEY_ACTIONS: Record<string, PadAction> = {
     ArrowLeft: "left",
@@ -128,7 +145,13 @@
   let achievementsGame = $state<Game | null>(null);
   let achievementIndex = $state(0);
   const revealedAchievements = new SvelteSet<string>();
-  let viewBeforeAchievements: "home" | "library" = "home";
+  let viewBeforeAchievements: "home" | "library" | "detail" = "home";
+
+  const detailsByGame = new SvelteMap<string, DetailsResult>();
+  let detailId = $state<string | null>(null);
+  let detailSpot = $state<DetailSpot>(FIRST_DETAIL_SPOT);
+  let viewerIndex = $state<number | null>(null);
+  let viewBeforeDetail = $state<"home" | "library">("home");
 
   let powerOpen = $state(false);
   let powerIndex = $state(0);
@@ -174,8 +197,23 @@
     return url && !brokenImages.has(url) ? url : null;
   };
 
+  const detailGame = $derived<Game | null>(detailId ? (allGames.find((game) => game.id === detailId) ?? null) : null);
+  const shownDetails = $derived<DetailsResult>((detailId && detailsByGame.get(detailId)) || { status: "loading" });
+  const detailFriends = $derived(
+    detailGame && friendsResult.status === "ready" ? friendsPlaying(friendsResult.friends, detailGame.name) : [],
+  );
+  const detailGallery = $derived(picturesOf(shownDetails.status === "ready" ? shownDetails : null));
+
   const lightbarGame = $derived<Game | null>(
-    view === "library" ? focusedLibraryGame : view === "home" ? selected : view === "achievements" ? achievementsGame : null,
+    view === "library"
+      ? focusedLibraryGame
+      : view === "home"
+        ? selected
+        : view === "achievements"
+          ? achievementsGame
+          : view === "detail"
+            ? detailGame
+            : null,
   );
 
   const achievementsOf = (game: Game | null): AchievementsResult | null =>
@@ -332,8 +370,139 @@
     }
   };
 
-  const openAchievements = (game: Game) => {
+  const fetchDetails = async (game: Game) => {
+    const known = detailsByGame.get(game.id);
+    if (known && known.status !== "failed") {
+      return;
+    }
+    detailsByGame.set(game.id, { status: "loading" });
+    try {
+      detailsByGame.set(game.id, { status: "ready", ...(await loadGameDetails(game)) });
+    } catch (error) {
+      detailsByGame.set(game.id, { status: "failed", message: String(error) });
+    }
+  };
+
+  const openDetail = (game: Game | null) => {
+    if (!game) {
+      return;
+    }
     if (view === "home" || view === "library") {
+      viewBeforeDetail = view;
+    }
+    detailId = game.id;
+    detailSpot = FIRST_DETAIL_SPOT;
+    viewerIndex = null;
+    launchError = null;
+    view = "detail";
+    feedback();
+    fetchDetails(game);
+    fetchAchievements(game);
+  };
+
+  const closeDetail = () => {
+    view = viewBeforeDetail;
+    detailId = null;
+    viewerIndex = null;
+    homeZone = "shelf";
+  };
+
+  const currentTab = $derived(view === "detail" ? viewBeforeDetail : view === "home" || view === "library" ? view : null);
+
+  const goToTab = (target: "home" | "library") => {
+    if (view === "detail") {
+      closeDetail();
+    }
+    switchView(target);
+  };
+
+  $effect(() => {
+    if (view === "detail" && !detailGame && library.status === "ready") {
+      closeDetail();
+    }
+  });
+
+  const detailActionList = $derived<DetailAction[]>(
+    detailGame
+      ? detailActions({
+          achievements: detailGame.store === "steam" && achievementsOf(detailGame)?.status !== "none",
+          folder: shownDetails.status === "ready" && shownDetails.installDir !== null,
+        })
+      : [],
+  );
+
+  const runDetailChoice = (action: DetailAction) => {
+    const game = detailGame;
+    if (!game) {
+      return;
+    }
+    if (action === "play") {
+      playOrReturn(game);
+    } else if (action === "achievements") {
+      openAchievements(game);
+    } else if (action === "folder") {
+      openGameFolder(game).catch((error) => (launchError = `Couldn't open the game's folder: ${error}`));
+    } else {
+      openMenu(game);
+    }
+  };
+
+  const runViewerAction = (action: PadAction) => {
+    const count = detailGallery?.pictures.length ?? 0;
+    if (viewerIndex === null) {
+      return;
+    }
+    if (action === "left" || action === "right") {
+      const next = Math.max(0, Math.min(count - 1, viewerIndex + (action === "right" ? 1 : -1)));
+      if (next !== viewerIndex) {
+        viewerIndex = next;
+        detailSpot = { row: "pictures", index: next };
+        feedback();
+      }
+    } else if (action === "back" || action === "confirm") {
+      viewerIndex = null;
+    }
+  };
+
+  const runDetailAction = (action: PadAction) => {
+    if (viewerIndex !== null) {
+      runViewerAction(action);
+      return;
+    }
+    if (action === "up" || action === "down" || action === "left" || action === "right") {
+      const next = moveDetail(detailSpot, action, detailActionList.length, detailGallery?.pictures.length ?? 0);
+      if (next === null) {
+        closeDetail();
+      } else if (next.row !== detailSpot.row || next.index !== detailSpot.index) {
+        detailSpot = next;
+        feedback();
+      }
+    } else if (action === "confirm") {
+      if (detailSpot.row === "pictures") {
+        viewerIndex = detailSpot.index;
+      } else {
+        const choice = detailActionList[detailSpot.index];
+        if (choice) {
+          runDetailChoice(choice);
+        }
+      }
+    } else if (action === "options") {
+      openMenu(detailGame);
+    } else if (action === "back") {
+      closeDetail();
+    } else if (action === "previousTab" || action === "nextTab") {
+      closeDetail();
+      switchView(action === "nextTab" ? "library" : "home");
+    } else if (action === "menu") {
+      openSettings();
+    } else if (action === "search") {
+      closeDetail();
+      openSearch();
+    }
+  };
+
+  const openAchievements = (game: Game) => {
+    if (view === "home" || view === "library" || view === "detail") {
       viewBeforeAchievements = view;
     }
     achievementsGame = game;
@@ -413,8 +582,13 @@
 
   const openSettings = () => {
     if (view === "achievements") {
-      viewBeforeSettings = viewBeforeAchievements;
+      viewBeforeSettings = viewBeforeAchievements === "detail" ? viewBeforeDetail : viewBeforeAchievements;
       achievementsGame = null;
+      detailId = null;
+    } else if (view === "detail") {
+      viewBeforeSettings = viewBeforeDetail;
+      detailId = null;
+      viewerIndex = null;
     } else if (view !== "settings") {
       viewBeforeSettings = view;
     }
@@ -811,6 +985,8 @@
       friendIndex = 0;
     } else if (action === "left" || action === "right") {
       moveSelection(action === "right" ? 1 : -1);
+    } else if (action === "down") {
+      openDetail(selected);
     } else if (action === "confirm" && selected) {
       playOrReturn(selected);
     } else if (action === "options") {
@@ -858,7 +1034,7 @@
         feedback();
       }
     } else if (action === "confirm" && focusedLibraryGame) {
-      playOrReturn(focusedLibraryGame);
+      openDetail(focusedLibraryGame);
     } else if (action === "options") {
       openMenu(focusedLibraryGame);
     } else if (action === "back") {
@@ -920,6 +1096,10 @@
     }
     if (view === "achievements") {
       runAchievementsAction(action);
+      return;
+    }
+    if (view === "detail") {
+      runDetailAction(action);
       return;
     }
     if (action === "search" && view !== "settings") {
@@ -1033,6 +1213,31 @@
             { action: "back", label: "Close" },
           ];
     }
+    if (view === "detail" && viewerIndex !== null) {
+      return [
+        { action: "navigate", label: "Browse" },
+        { action: "back", label: "Close" },
+      ];
+    }
+    if (view === "detail") {
+      const choice = detailSpot.row === "actions" ? detailActionList[detailSpot.index] : null;
+      const confirmLabel =
+        detailSpot.row === "pictures"
+          ? "View"
+          : choice === "play"
+            ? detailGame?.id === runningGameId
+              ? "Back to game"
+              : "Play"
+            : choice === "options"
+              ? "More"
+              : "Open";
+      return [
+        { action: "navigate", label: "Move" },
+        { action: "confirm", label: confirmLabel },
+        { action: "options", label: "Options" },
+        { action: "back", label: "Back" },
+      ];
+    }
     if (view === "achievements") {
       const focused = orderedAchievements[achievementIndex];
       return [
@@ -1060,7 +1265,7 @@
         { action: "navigate", label: "Navigate" },
         {
           action: "confirm",
-          label: libraryZone === "controls" ? "Select" : focusedLibraryGame?.id === runningGameId ? "Back to game" : "Play",
+          label: libraryZone === "controls" ? "Select" : "Details",
         },
         { action: "options", label: "Options" },
         { action: "search", label: "Search" },
@@ -1204,6 +1409,15 @@
     </div>
     <div class="scrim deep"></div>
   {/if}
+  {#if view === "detail" && detailGame}
+    {@const art = usableImage(detailGame.images.hero)}
+    <div class="hero-art tall" style:background={placeholderArt(detailGame.name)}>
+      {#if art}
+        <img src={art} alt="" decoding="async" onerror={() => markBroken(art)} />
+      {/if}
+    </div>
+    <div class="scrim detail"></div>
+  {/if}
   {#if view === "home" && selected}
     {#key selected.id}
       <div class="hero-art" style:background={placeholderArt(selected.name)}>
@@ -1219,10 +1433,16 @@
     <header class="top-bar">
       <span class="greeting">{greeting(now)}</span>
       <nav aria-label="Main navigation">
-        <button type="button" class="tab" class:active={view === "home"} aria-current={view === "home" ? "page" : undefined} onclick={() => switchView("home")}>
+        <button type="button" class="tab" class:active={currentTab === "home"} aria-current={currentTab === "home" ? "page" : undefined} onclick={() => goToTab("home")}>
           Home
         </button>
-        <button type="button" class="tab" class:active={view === "library"} aria-current={view === "library" ? "page" : undefined} onclick={() => switchView("library")}>
+        <button
+          type="button"
+          class="tab"
+          class:active={currentTab === "library"}
+          aria-current={currentTab === "library" ? "page" : undefined}
+          onclick={() => goToTab("library")}
+        >
           Library
         </button>
       </nav>
@@ -1256,6 +1476,26 @@
         note={settingsNote}
         onFocus={(index) => (settingsIndex = index)}
         onActivate={activateSetting}
+      />
+    {:else if view === "detail" && detailGame}
+      <GameDetail
+        game={detailGame}
+        details={shownDetails}
+        achievements={achievementsOf(detailGame)}
+        friends={detailFriends}
+        running={detailGame.id === runningGameId}
+        {now}
+        error={launchError}
+        actions={detailActionList}
+        spot={viewerIndex === null ? detailSpot : null}
+        {isBroken}
+        onBroken={markBroken}
+        onFocus={(spot) => (detailSpot = spot)}
+        onAction={runDetailChoice}
+        onOpenPicture={(index) => {
+          detailSpot = { row: "pictures", index };
+          viewerIndex = index;
+        }}
       />
     {:else if view === "achievements" && achievementsGame}
       <AchievementsView
@@ -1299,7 +1539,7 @@
           libraryZone = "grid";
           libraryIndex = index;
         }}
-        onActivate={playOrReturn}
+        onActivate={openDetail}
         onOptions={openMenu}
         onColumns={(columns) => (libraryColumns = columns)}
       />
@@ -1373,6 +1613,16 @@
       resultCount={libraryGames.length}
       onInput={setSearch}
       onPressKey={pressSearchKey}
+    />
+  {/if}
+
+  {#if view === "detail" && viewerIndex !== null && detailGallery}
+    <ScreenshotViewer
+      title={detailGallery.title}
+      pictures={detailGallery.pictures}
+      index={viewerIndex}
+      onStep={(step) => runViewerAction(step === 1 ? "right" : "left")}
+      onClose={() => (viewerIndex = null)}
     />
   {/if}
 
@@ -1459,6 +1709,16 @@
     filter: blur(28px) saturate(1.2);
     transform: scale(1.08);
     opacity: 0.55;
+  }
+
+  .hero-art.tall {
+    height: 100vh;
+  }
+
+  .scrim.detail {
+    background:
+      linear-gradient(90deg, rgba(10, 10, 12, 0.94) 0%, rgba(10, 10, 12, 0.7) 40%, rgba(10, 10, 12, 0.1) 75%),
+      linear-gradient(0deg, var(--bg) 0%, rgba(10, 10, 12, 0.92) 38%, rgba(10, 10, 12, 0) 65%);
   }
 
   .scrim.deep {

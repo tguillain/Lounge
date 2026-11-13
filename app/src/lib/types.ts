@@ -102,6 +102,24 @@ export type AudioOutputKind = "speakers" | "headphones" | "headset" | "display" 
 
 export type Volume = { level: number; muted: boolean };
 
+export type Picture = { thumbnail: string; full: string };
+
+export type StoreInfo = {
+  description: string | null;
+  genres: string[];
+  developers: string[];
+  releaseDate: string | null;
+  screenshots: Picture[];
+};
+
+export type GameDetails = {
+  store: StoreInfo | null;
+  installDir: string | null;
+  screenshots: Picture[];
+};
+
+export type DetailsResult = { status: "loading" } | ({ status: "ready" } & GameDetails) | { status: "failed"; message: string };
+
 export type AudioOutput = {
   id: string;
   name: string;
