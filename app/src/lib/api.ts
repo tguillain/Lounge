@@ -59,7 +59,7 @@ export const onGameSession = async (
 export const getSession = async (): Promise<Session | null> => {
   if (!runsInTauri) {
     const [game] = previewLibrary();
-    return { appId: 0, startedAt: Date.now() - 72 * 60 * 1000, game };
+    return { gameId: game?.id ?? "preview", startedAt: Date.now() - 72 * 60 * 1000, game };
   }
   return invoke<Session | null>("get_session");
 };

@@ -28,7 +28,7 @@ export type Game = {
 };
 
 export type Session = {
-  appId: number;
+  gameId: string;
   startedAt: number;
   game: Game | null;
 };

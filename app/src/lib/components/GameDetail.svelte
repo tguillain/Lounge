@@ -140,7 +140,7 @@
     </div>
     <div class="stat">
       <span class="stat-label">Last played</span>
-      <span class="stat-value">{running ? "Right now" : (lastPlayed ?? "Never")}</span>
+      <span class="stat-value">{running ? "Right now" : (lastPlayed ?? (game.playTime === null ? "—" : "Never"))}</span>
     </div>
     <div class="stat">
       <span class="stat-label">Friends playing</span>

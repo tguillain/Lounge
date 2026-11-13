@@ -68,7 +68,7 @@ Steam's Big Picture mode is heavy. Store launchers are noisy. Lounge is neither:
 - It shows how long you've been playing, this session and in total, and your achievement progress: what you unlocked this session, or the most common ones still locked.
 - The gear opens Lounge's Settings.
 - No controller in hand? Pick a **keyboard shortcut** in Settings, like F10 or Ctrl + Shift + Q. Lounge only claims it while a game is running.
-- Lounge tracks the session on its own: it knows when a game starts, brings it back to the front, and returns to Home when you quit.
+- Lounge tracks the session on its own, for Steam and Epic games alike: it knows when a game starts, brings it back to the front, and returns to Home when you quit.
 
 ### 🔌 Control Center
 - Press the **PS button** on Home, or click the power icon, to switch the **sound output** (TV, speakers, headset, the controller's jack), put the PC to **sleep**, **restart** it, **shut it down** or quit Lounge.
@@ -105,10 +105,12 @@ Steam's Big Picture mode is heavy. Store launchers are noisy. Lounge is neither:
 | Store | Library | Artwork | Play time | Launch | Session tracking |
 |---|---|---|---|---|---|
 | Steam | ✅ | ✅ local cache, CDN fallback | ✅ | ✅ | ✅ |
-| Epic Games | ✅ | | | ✅ | 🔜 |
+| Epic Games | ✅ | ✅ launcher catalog | ✅ counted by Lounge | ✅ | ✅ |
 | Rockstar Games | 🔜 | | | | |
 
-Lounge reads what your launchers already keep on disk: Steam library folders, app manifests, the artwork cache and your local play time. No sign-in, no scraping.
+Lounge reads what your launchers already keep on disk: Steam library folders, app manifests, the artwork cache and your local play time, and the Epic Games Launcher's install records (old and new format) and catalog. No sign-in, no scraping.
+
+Epic doesn't keep play time on your PC, so Lounge counts it itself: every Epic session it sees adds up, from the first one on.
 
 ## Privacy
 
@@ -170,7 +172,9 @@ app/
 │  └─ lib/                   Components, gamepad input, library logic
 └─ src-tauri/src/          Rust core
    ├─ steam.rs, epic.rs      Store detection (with a small VDF parser)
-   ├─ watcher.rs, session.rs Game sessions: start, focus, quit
+   ├─ watcher.rs, session.rs Game sessions for Steam and Epic: start, focus, quit
+   ├─ playtime.rs            Play time Lounge counts itself, for Epic games
+   ├─ process.rs             Running games, even ones started as administrator
    ├─ pad.rs, quick_menu.rs  DualSense over HID and the PS button overlay
    ├─ shortcut.rs            The Quick Menu keyboard shortcut, held only in game
    ├─ dualsense_output.rs    Rumble and light bar reports for the DualSense
@@ -189,7 +193,7 @@ app/
 
 ## Roadmap
 
-- [ ] Session tracking and *Now playing* for Epic games
+- [x] Session tracking, *Now playing*, artwork and play time for Epic games
 - [ ] Rockstar Games Launcher support
 - [x] Single instance: reopening Lounge brings back the running one
 - [x] Subtle navigation sounds

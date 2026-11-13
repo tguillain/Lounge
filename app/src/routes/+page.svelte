@@ -1354,7 +1354,7 @@
     });
 
     getSession()
-      .then((session) => (runningGameId = session ? `steam:${session.appId}` : null))
+      .then((session) => (runningGameId = session?.gameId ?? null))
       .catch(() => (runningGameId = null));
 
     const stopListening = onGameSession(

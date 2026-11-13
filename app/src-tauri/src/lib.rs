@@ -11,7 +11,9 @@ mod game;
 mod lightbar;
 mod logo;
 mod pad;
+mod playtime;
 mod power;
+mod process;
 mod quick_menu;
 mod session;
 mod settings;
@@ -37,7 +39,7 @@ use window::WindowState;
 #[derive(Serialize)]
 #[serde(rename_all = "camelCase")]
 struct SessionInfo {
-    app_id: u32,
+    game_id: String,
     started_at: u64,
     game: Option<Game>,
 }
@@ -74,8 +76,15 @@ async fn get_achievements(app_id: u32) -> Result<achievements::AchievementsResul
         .map_err(|error| error.to_string())
 }
 
-fn steam_app_id(game_id: &str) -> Option<u32> {
-    game_id.strip_prefix("steam:")?.parse().ok()
+fn play_log(app: &tauri::AppHandle) -> playtime::PlayLog {
+    playtime::path(app).map(|path| playtime::load(&path)).unwrap_or_default()
+}
+
+fn find_game(game_id: &str, logo_cache: Option<&std::path::Path>, play_log: &playtime::PlayLog) -> Option<Game> {
+    match session::steam_app_id(game_id) {
+        Some(app_id) => steam::find_game(app_id, logo_cache),
+        None => epic::find_game(game_id, play_log),
+    }
 }
 
 fn store_cache_dir(app: &tauri::AppHandle) -> Option<PathBuf> {
@@ -86,8 +95,14 @@ fn store_cache_dir(app: &tauri::AppHandle) -> Option<PathBuf> {
 
 #[tauri::command]
 async fn get_game_details(app: tauri::AppHandle, game_id: String) -> Result<details::GameDetails, String> {
-    let Some(app_id) = steam_app_id(&game_id) else {
-        return Ok(details::GameDetails::default());
+    let Some(app_id) = session::steam_app_id(&game_id) else {
+        let install_dir = tauri::async_runtime::spawn_blocking(move || session::install_dir(&game_id))
+            .await
+            .map_err(|error| error.to_string())?;
+        return Ok(details::GameDetails {
+            install_dir: install_dir.map(|dir| dir.to_string_lossy().into_owned()),
+            ..details::GameDetails::default()
+        });
     };
     let cache = store_cache_dir(&app);
     let found = tauri::async_runtime::spawn_blocking(move || details::load(app_id, cache.as_deref()))
@@ -103,9 +118,7 @@ async fn get_game_details(app: tauri::AppHandle, game_id: String) -> Result<deta
 
 #[tauri::command]
 fn open_game_folder(game_id: String) -> Result<(), String> {
-    let folder = steam_app_id(&game_id)
-        .and_then(steam::install_path)
-        .ok_or("Lounge couldn't find where this game is installed.")?;
+    let folder = session::install_dir(&game_id).ok_or("Lounge couldn't find where this game is installed.")?;
     folder::open(&folder)
 }
 
@@ -258,8 +271,9 @@ async fn set_quick_menu_shortcut(app: tauri::AppHandle, shortcut: Option<String>
 async fn get_library(app: tauri::AppHandle) -> Result<Vec<Game>, String> {
     let logo_cache = logo_cache_dir(&app);
     let hidden = settings::load(&settings::path(&app)?).hidden_games;
+    let log = play_log(&app);
     tauri::async_runtime::spawn_blocking(move || {
-        let mut games: Vec<Game> = steam::scan(logo_cache.as_deref()).into_iter().chain(epic::scan()).collect();
+        let mut games: Vec<Game> = steam::scan(logo_cache.as_deref()).into_iter().chain(epic::scan(&log)).collect();
         for game in &mut games {
             game.hidden = hidden.contains(&game.id);
         }
@@ -281,15 +295,17 @@ async fn get_session(app: tauri::AppHandle) -> Result<Option<SessionInfo>, Strin
         return Ok(None);
     };
     let logo_cache = logo_cache_dir(&app);
-    let game = tauri::async_runtime::spawn_blocking(move || steam::find_game(current.app_id, logo_cache.as_deref()))
+    let log = play_log(&app);
+    let game_id = current.game_id.clone();
+    let game = tauri::async_runtime::spawn_blocking(move || find_game(&game_id, logo_cache.as_deref(), &log))
         .await
         .map_err(|error| error.to_string())?;
-    Ok(Some(SessionInfo { app_id: current.app_id, started_at: current.started_at_ms, game }))
+    Ok(Some(SessionInfo { game_id: current.game_id, started_at: current.started_at_ms, game }))
 }
 
 async fn focus_running_game(app: &tauri::AppHandle) {
     if let Some(current) = session::current(app) {
-        let _ = tauri::async_runtime::spawn_blocking(move || session::focus_game(current.app_id)).await;
+        let _ = tauri::async_runtime::spawn_blocking(move || session::focus_game(&current.game_id)).await;
     }
 }
 
@@ -331,7 +347,7 @@ fn take_settings_request(request: tauri::State<'_, quick_menu::SettingsRequest>)
 #[tauri::command]
 async fn quick_menu_quit_game(app: tauri::AppHandle) -> Result<(), String> {
     let current = session::current(&app).ok_or("No game is running")?;
-    tauri::async_runtime::spawn_blocking(move || session::kill_game(current.app_id))
+    tauri::async_runtime::spawn_blocking(move || session::kill_game(&current.game_id))
         .await
         .map_err(|error| error.to_string())??;
     quick_menu::close(&app);
