@@ -1,6 +1,8 @@
-import type { Achievement, AchievementsResult, Game, Store } from "./types";
+import type { Achievement, AchievementsResult, Game, PlaySession, Store } from "./types";
 
 const HOUR = 3600;
+
+const RECENT_PREVIEW_MINUTES: Record<string, number> = { "Ashen Horizon": 730, "The Depths": 405, Orbit: 90 };
 
 const previewGame = (name: string, store: Store, hoursAgo: number, sizeGb: number, playedHours: number): Game => ({
   id: `preview:${name}`,
@@ -9,6 +11,7 @@ const previewGame = (name: string, store: Store, hoursAgo: number, sizeGb: numbe
   lastPlayed: hoursAgo === 0 ? 0 : Math.floor(Date.now() / 1000) - hoursAgo * HOUR,
   sizeOnDisk: sizeGb * 1024 ** 3,
   playTime: store === "epic" ? null : Math.round(playedHours * 60),
+  recentPlayTime: store === "epic" ? null : (RECENT_PREVIEW_MINUTES[name] ?? 0),
   launchUri: "",
   images: { hero: null, logo: null, logoIsDark: false, header: null, cover: null },
   hidden: false,
@@ -25,6 +28,24 @@ export const previewLibrary = (): Game[] => [
   previewGame("Orbit", "steam", 2000, 15, 17),
   previewGame("Workshop 9", "steam", 0, 2, 0),
 ];
+
+/** Seven weeks of evenings, with a few days off, for the browser preview. */
+export const previewSessions = (): PlaySession[] => {
+  const games = ["preview:Ashen Horizon", "preview:The Depths", "preview:Neon Drift", "preview:Ashen Horizon", "preview:Orbit"];
+  const now = new Date();
+  const sessions: PlaySession[] = [];
+  for (let daysAgo = 49; daysAgo >= 1; daysAgo -= 1) {
+    if (daysAgo % 7 === 4 || daysAgo % 9 === 6) {
+      continue;
+    }
+    const start = new Date(now.getFullYear(), now.getMonth(), now.getDate() - daysAgo, 20, (daysAgo * 7) % 50).getTime() / 1000;
+    const minutes = 35 + ((daysAgo * 37) % 140);
+    sessions.push({ gameId: games[daysAgo % games.length], start, end: start + minutes * 60 });
+  }
+  const today = Math.floor(now.getTime() / 1000);
+  sessions.push({ gameId: "preview:Ashen Horizon", start: today - 80 * 60, end: today - 5 * 60 });
+  return sessions;
+};
 
 const PREVIEW_ACHIEVEMENTS: [string, string, number, number | null, boolean][] = [
   ["First Light", "Finish the prologue.", 94.1, 2, false],

@@ -15,6 +15,7 @@
   import SettingsView from "$lib/components/SettingsView.svelte";
   import Shelf from "$lib/components/Shelf.svelte";
   import ConnectDialog from "$lib/components/ConnectDialog.svelte";
+  import StatsView from "$lib/components/StatsView.svelte";
   import {
     backToGame,
     checkForUpdate,
@@ -31,6 +32,7 @@
     loadAchievements,
     loadFriends,
     loadGameDetails,
+    loadPlayHistory,
     loadPsnFriends,
     loadLibrary,
     onGameSession,
@@ -60,6 +62,7 @@
   } from "$lib/api";
   import { clockLabel, greeting, placeholderArt } from "$lib/format";
   import { friendsProblems, homeFriends, nothingConnected, readyFriends, stillLoading } from "$lib/friends";
+  import { mostPlayed, type StatsPeriod } from "$lib/stats";
   import { pulse, updateDualSense, watchGamepads } from "$lib/input/gamepad";
   import type { InputMode, PadAction } from "$lib/input/gamepad-mapping";
   import {
@@ -90,13 +93,18 @@
     FriendsResult,
     Game,
     LibraryState,
+    PlaySession,
     Preferences,
     Toggle,
     UpdateStatus,
   } from "$lib/types";
   import { FIRST_DETAIL_SPOT, detailActions, friendsPlaying, moveDetail, picturesOf, type DetailAction, type DetailSpot } from "$lib/game-detail";
 
-  type View = "home" | "library" | "settings" | "achievements" | "detail";
+  type View = "home" | "library" | "stats" | "settings" | "achievements" | "detail";
+  type Tab = "home" | "library" | "stats";
+
+  const TABS: Tab[] = ["home", "library", "stats"];
+  const isTab = (candidate: View): candidate is Tab => (TABS as View[]).includes(candidate);
 
   const KEY_ACTIONS: Record<string, PadAction> = {
     ArrowLeft: "left",
@@ -155,13 +163,17 @@
   let achievementsGame = $state<Game | null>(null);
   let achievementIndex = $state(0);
   const revealedAchievements = new SvelteSet<string>();
-  let viewBeforeAchievements: "home" | "library" | "detail" = "home";
+  let viewBeforeAchievements: Tab | "detail" = "home";
 
   const detailsByGame = new SvelteMap<string, DetailsResult>();
   let detailId = $state<string | null>(null);
   let detailSpot = $state<DetailSpot>(FIRST_DETAIL_SPOT);
   let viewerIndex = $state<number | null>(null);
-  let viewBeforeDetail = $state<"home" | "library">("home");
+  let viewBeforeDetail = $state<Tab>("home");
+
+  let playHistory = $state<PlaySession[] | null>(null);
+  let statsPeriod = $state<StatsPeriod>("recent");
+  let statsIndex = $state(0);
 
   let powerOpen = $state(false);
   let powerIndex = $state(0);
@@ -177,7 +189,7 @@
   let settingsIndex = $state(0);
   let settingsNote = $state<string | null>(null);
   let capturingShortcut = $state(false);
-  let viewBeforeSettings: "home" | "library" = "home";
+  let viewBeforeSettings: Tab = "home";
   let update = $state<UpdateStatus>({ state: "idle" });
   const showFriends = $derived(preferences?.showFriends ?? true);
 
@@ -220,9 +232,14 @@
   );
   const detailGallery = $derived(picturesOf(shownDetails.status === "ready" ? shownDetails : null));
 
+  const statsRanking = $derived(mostPlayed(allGames, playHistory ?? [], now, statsPeriod));
+  const focusedStatsGame = $derived<Game | null>(statsRanking[statsIndex]?.game ?? null);
+
   const lightbarGame = $derived<Game | null>(
     view === "library"
       ? focusedLibraryGame
+      : view === "stats"
+        ? focusedStatsGame
       : view === "home"
         ? selected
         : view === "achievements"
@@ -431,9 +448,10 @@
     if (!game) {
       return;
     }
-    if (view === "home" || view === "library") {
+    if (isTab(view)) {
       viewBeforeDetail = view;
     }
+    refreshHistory();
     detailId = game.id;
     detailSpot = FIRST_DETAIL_SPOT;
     viewerIndex = null;
@@ -451,9 +469,14 @@
     homeZone = "shelf";
   };
 
-  const currentTab = $derived(view === "detail" ? viewBeforeDetail : view === "home" || view === "library" ? view : null);
+  const currentTab = $derived<Tab | null>(view === "detail" ? viewBeforeDetail : isTab(view) ? view : null);
 
-  const goToTab = (target: "home" | "library") => {
+  const neighbourTab = (action: "previousTab" | "nextTab"): Tab => {
+    const index = TABS.indexOf(currentTab ?? "home") + (action === "nextTab" ? 1 : -1);
+    return TABS[Math.max(0, Math.min(TABS.length - 1, index))];
+  };
+
+  const goToTab = (target: Tab) => {
     if (view === "detail") {
       closeDetail();
     }
@@ -536,7 +559,7 @@
       closeDetail();
     } else if (action === "previousTab" || action === "nextTab") {
       closeDetail();
-      switchView(action === "nextTab" ? "library" : "home");
+      switchView(neighbourTab(action));
     } else if (action === "menu") {
       openSettings();
     } else if (action === "search") {
@@ -546,7 +569,7 @@
   };
 
   const openAchievements = (game: Game) => {
-    if (view === "home" || view === "library" || view === "detail") {
+    if (isTab(view) || view === "detail") {
       viewBeforeAchievements = view;
     }
     achievementsGame = game;
@@ -585,7 +608,7 @@
       closeAchievements();
     } else if (action === "previousTab" || action === "nextTab") {
       closeAchievements();
-      switchView(action === "nextTab" ? "library" : "home");
+      switchView(neighbourTab(action));
     } else if (action === "menu") {
       openSettings();
     }
@@ -919,14 +942,52 @@
     }
   };
 
-  const switchView = (target: "home" | "library") => {
+  const switchView = (target: Tab) => {
     if (view === target) {
       return;
     }
     view = target;
     homeZone = "shelf";
     libraryZone = "grid";
+    if (target === "stats") {
+      statsIndex = 0;
+      refreshHistory();
+    }
     feedback();
+  };
+
+  const refreshHistory = async () => {
+    try {
+      playHistory = await loadPlayHistory();
+    } catch {
+      playHistory = playHistory ?? [];
+    }
+  };
+
+  const setStatsPeriod = (period: StatsPeriod) => {
+    if (period !== statsPeriod) {
+      statsPeriod = period;
+      statsIndex = 0;
+      feedback();
+    }
+  };
+
+  const runStatsAction = (action: PadAction) => {
+    if (action === "up" || action === "down") {
+      const next = Math.max(0, Math.min(statsRanking.length - 1, statsIndex + (action === "down" ? 1 : -1)));
+      if (next !== statsIndex) {
+        statsIndex = next;
+        feedback();
+      }
+    } else if (action === "left" || action === "right") {
+      setStatsPeriod(action === "right" ? "all" : "recent");
+    } else if (action === "confirm") {
+      openDetail(focusedStatsGame);
+    } else if (action === "options") {
+      openMenu(focusedStatsGame);
+    } else if (action === "back") {
+      switchView("home");
+    }
   };
 
   const selectFilter = (filter: LibraryFilter) => {
@@ -1161,13 +1222,15 @@
       return;
     }
     if (action === "previousTab" || action === "nextTab") {
-      switchView(action === "nextTab" ? "library" : "home");
+      switchView(neighbourTab(action));
     } else if (view === "settings") {
       runSettingsAction(action);
     } else if (action === "menu") {
       openSettings();
     } else if (view === "home") {
       runHomeAction(action);
+    } else if (view === "stats") {
+      runStatsAction(action);
     } else {
       runLibraryAction(action);
     }
@@ -1194,6 +1257,8 @@
       choosingOutput,
       achievementIndex,
       revealedAchievements.size,
+      statsIndex,
+      statsPeriod,
       searchQuery,
       keyPosition.row,
       keyPosition.column,
@@ -1314,6 +1379,14 @@
         { action: "back", label: "Back" },
       ];
     }
+    if (view === "stats") {
+      return [
+        { action: "navigate", label: "Move" },
+        ...(focusedStatsGame ? [{ action: "confirm" as const, label: "Open game" }] : []),
+        { action: "back", label: "Home" },
+        { action: "menu", label: "Settings" },
+      ];
+    }
     if (view === "library") {
       return [
         { action: "navigate", label: "Navigate" },
@@ -1350,6 +1423,7 @@
   onMount(() => {
     refreshLibrary();
     refreshFriends();
+    refreshHistory();
     loadPreferences().then(lookForUpdate);
 
     const stopGamepads = watchGamepads((action, family) => {
@@ -1422,6 +1496,7 @@
       (gameId) => {
         runningGameId = null;
         refreshLibrary();
+        refreshHistory();
         if (achievementsByGame.has(gameId)) {
           const played = allGames.find((game) => game.id === gameId);
           achievementsByGame.delete(gameId);
@@ -1455,7 +1530,7 @@
 />
 
 <div class="screen">
-  {#if view === "library" || view === "settings"}
+  {#if view === "library" || view === "settings" || view === "stats"}
     <div class="ambient" aria-hidden="true"></div>
   {/if}
   {#if view === "achievements" && achievementsGame}
@@ -1503,6 +1578,15 @@
         >
           Library
         </button>
+        <button
+          type="button"
+          class="tab"
+          class:active={currentTab === "stats"}
+          aria-current={currentTab === "stats" ? "page" : undefined}
+          onclick={() => goToTab("stats")}
+        >
+          Stats
+        </button>
       </nav>
       <div class="top-right">
         <BatteryIndicator />
@@ -1541,6 +1625,7 @@
         details={shownDetails}
         achievements={achievementsOf(detailGame)}
         friends={detailFriends}
+        sessions={playHistory}
         running={detailGame.id === runningGameId}
         {now}
         error={launchError}
@@ -1576,6 +1661,19 @@
         <p class="message-body">{library.message}</p>
         <button type="button" class="secondary" onclick={refreshLibrary}>Try again</button>
       </section>
+    {:else if view === "stats"}
+      <StatsView
+        games={allGames}
+        sessions={playHistory}
+        {now}
+        period={statsPeriod}
+        focusedIndex={statsIndex}
+        {isBroken}
+        onBroken={markBroken}
+        onFocus={(index) => (statsIndex = index)}
+        onOpen={openDetail}
+        onPeriod={setStatsPeriod}
+      />
     {:else if view === "library"}
       <LibraryView
         games={libraryGames}

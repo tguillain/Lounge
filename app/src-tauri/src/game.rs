@@ -49,6 +49,9 @@ pub struct Game {
     pub last_played: u64,
     pub size_on_disk: u64,
     pub play_time: Option<u64>,
+    /// Minutes played in the last two weeks, as Steam counts them. None when
+    /// the store doesn't say: the interface then counts Lounge's own sessions.
+    pub recent_play_time: Option<u64>,
     pub launch_uri: String,
     pub images: GameImages,
     pub hidden: bool,

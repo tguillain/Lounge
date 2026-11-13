@@ -55,6 +55,12 @@ Steam's Big Picture mode is heavy. Store launchers are noisy. Lounge is neither:
 - **Play**, your achievements, the game's folder and more options, one button each.
 - Your Steam screenshots of the game, or the store's when you haven't taken any, full screen with ✕.
 
+### 📊 Stats
+- A **Stats** tab next to Home and Library: your play time this week, day by day and against last week, and your streak of days played.
+- Your most played games, over the last two weeks or all time, and your last 12 weeks at a glance. ✕ on a game opens its page.
+- Each game's page shows its play time over the last two weeks, a 12-week chart, and your last and longest session.
+- Steam only keeps totals on your PC, so the day-by-day history starts the day Lounge starts counting. Totals and the last two weeks come from Steam straight away.
+
 ### 🏆 Steam achievements
 - The Home screen shows how many achievements of the selected game you've unlocked.
 - The game's Options menu opens the full list: latest unlocks first, then locked ones from most to least common, with unlock dates, the share of players who have each one, and rare ones in gold.
@@ -96,7 +102,7 @@ Steam's Big Picture mode is heavy. Store launchers are noisy. Lounge is neither:
 | Game options and achievements | △ | Y | Right-click |
 | Pin or unpin a friend | △ on a friend | Y on a friend | Right-click on a friend |
 | Search the library | □ | X | / or Ctrl+F |
-| Home ⇄ Library | L1 / R1 | LB / RB | Q / E |
+| Home ⇄ Library ⇄ Stats | L1 / R1 | LB / RB | Q / E |
 | Settings | Options | Menu | Tab |
 | Control Center (on Home) | PS | | Power icon |
 | Quick Menu (in game) | PS | | Your shortcut, set in Settings |
@@ -116,7 +122,7 @@ Epic doesn't keep play time on your PC, so Lounge counts it itself: every Epic s
 
 ## Privacy
 
-- Everything about your library is read **locally**.
+- Everything about your library is read **locally**, and the sessions Lounge counts for your stats stay in its own folder on your PC.
 - A game's page asks the Steam store for its public description, genres and screenshots, without a key or your account, and keeps the answer on disk for a week.
 - Steam friends and the full achievement lists are optional. They need a free Steam Web API key, which Lounge stores in **Windows Credential Manager**, never in a file or in this repo. Without it, achievements fall back to what Steam keeps on your PC.
 - PlayStation friends are optional too. You paste a sign-in token from Sony's own page once; Lounge swaps it for a sign-in that lasts about two months, keeps that in Windows Credential Manager, and only reads your friends list and their status. Sony doesn't offer a public API for this, so Lounge uses the one the PlayStation App uses, which Sony may change at any time.
@@ -177,6 +183,7 @@ app/
    ├─ steam.rs, epic.rs      Store detection (with a small VDF parser)
    ├─ watcher.rs, session.rs Game sessions for Steam and Epic: start, focus, quit
    ├─ playtime.rs            Play time Lounge counts itself, for Epic games
+   ├─ history.rs             Every session, dated, for the Stats tab
    ├─ process.rs             Running games, even ones started as administrator
    ├─ pad.rs, quick_menu.rs  DualSense over HID and the PS button overlay
    ├─ shortcut.rs            The Quick Menu keyboard shortcut, held only in game
@@ -207,6 +214,7 @@ app/
 - [x] A keyboard shortcut for the Quick Menu
 - [x] A page for every game, with its screenshots
 - [x] PlayStation friends, and pinned friends
+- [x] Stats: play time per day and week, streaks, most played games
 - [ ] GOG, EA, Ubisoft and Battle.net libraries, and adding any game by hand
 
 ## License

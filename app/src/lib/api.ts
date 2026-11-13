@@ -4,9 +4,9 @@ import { getCurrentWebviewWindow } from "@tauri-apps/api/webviewWindow";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import type { PadAction } from "./input/gamepad-mapping";
 import { hueOf } from "./format";
-import { previewAchievements, previewLibrary } from "./preview-library";
+import { previewAchievements, previewLibrary, previewSessions } from "./preview-library";
 import type { Downloads } from "./downloads";
-import type { AchievementsResult, AudioOutput, AvailableUpdate, Battery, Friend, FriendsResult, Game, Preferences, Session, Toggle, Volume, GameDetails, Picture } from "./types";
+import type { AchievementsResult, AudioOutput, AvailableUpdate, Battery, Friend, FriendsResult, Game, PlaySession, Preferences, Session, Toggle, Volume, GameDetails, Picture } from "./types";
 
 const runsInTauri = typeof window !== "undefined" && "__TAURI_INTERNALS__" in window;
 
@@ -128,6 +128,13 @@ export const setFriendPinned = async (friendId: string, pinned: boolean): Promis
     return;
   }
   await invoke("set_friend_pinned", { friendId, pinned });
+};
+
+export const loadPlayHistory = async (): Promise<PlaySession[]> => {
+  if (!runsInTauri) {
+    return previewSessions();
+  }
+  return invoke<PlaySession[]>("get_play_history");
 };
 
 export const loadAchievements = async (game: Game): Promise<AchievementsResult> => {

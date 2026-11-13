@@ -5,7 +5,7 @@ use tauri::{AppHandle, Emitter};
 
 use crate::process::Scanner;
 use crate::session::Session;
-use crate::{epic, playtime, quick_menu, session, shortcut, steam, window};
+use crate::{epic, history, playtime, quick_menu, session, shortcut, steam, window};
 
 const POLL_INTERVAL: Duration = Duration::from_secs(2);
 pub const DOWNLOADS_EVENT: &str = "steam-downloads";
@@ -68,10 +68,13 @@ fn running_game(processes: &mut Scanner) -> Option<String> {
 }
 
 fn remember(app: &AppHandle, ended: &Session) {
-    if !ended.game_id.starts_with("epic:") {
-        return;
+    let ended_at_ms = session::now_ms();
+    if let Some(path) = history::path(app) {
+        let _ = history::record(&path, &ended.game_id, ended.started_at_ms, ended_at_ms);
     }
-    if let Some(path) = playtime::path(app) {
-        let _ = playtime::record(&path, &ended.game_id, ended.started_at_ms, session::now_ms());
+    if ended.game_id.starts_with("epic:")
+        && let Some(path) = playtime::path(app)
+    {
+        let _ = playtime::record(&path, &ended.game_id, ended.started_at_ms, ended_at_ms);
     }
 }

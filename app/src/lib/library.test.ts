@@ -9,6 +9,7 @@ const game = (name: string, store: Store, lastPlayed: number, sizeGb: number, pl
   lastPlayed,
   sizeOnDisk: sizeGb * 1024 ** 3,
   playTime,
+  recentPlayTime: null,
   launchUri: "",
   images: { hero: null, logo: null, logoIsDark: false, header: null, cover: null },
   hidden,

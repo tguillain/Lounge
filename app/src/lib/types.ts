@@ -21,10 +21,17 @@ export type Game = {
   lastPlayed: number;
   sizeOnDisk: number;
   playTime: number | null;
+  recentPlayTime: number | null;
   launchUri: string;
   images: GameImages;
   hidden: boolean;
   download: Download | null;
+};
+
+export type PlaySession = {
+  gameId: string;
+  start: number;
+  end: number;
 };
 
 export type Session = {

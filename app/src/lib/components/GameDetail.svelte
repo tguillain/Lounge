@@ -3,13 +3,15 @@
   import { downloadLabel } from "$lib/downloads";
   import { lastPlayedLabel, placeholderArt, playTimeValue, sizeLabel, storeLabel } from "$lib/format";
   import { creditsLine, genresLine, libraryFolder, picturesOf, type DetailAction, type DetailSpot } from "$lib/game-detail";
-  import type { AchievementsResult, DetailsResult, Friend, Game } from "$lib/types";
+  import { durationLabel, recentMinutes, sessionMinutes, sessionsOf, weekTotals } from "$lib/stats";
+  import type { AchievementsResult, DetailsResult, Friend, Game, PlaySession } from "$lib/types";
 
   type Props = {
     game: Game;
     details: DetailsResult;
     achievements: AchievementsResult | null;
     friends: Friend[];
+    sessions: PlaySession[] | null;
     running: boolean;
     now: Date;
     error: string | null;
@@ -22,8 +24,23 @@
     onOpenPicture: (index: number) => void;
   };
 
-  let { game, details, achievements, friends, running, now, error, actions, spot, isBroken, onBroken, onFocus, onAction, onOpenPicture }: Props =
-    $props();
+  let {
+    game,
+    details,
+    achievements,
+    friends,
+    sessions,
+    running,
+    now,
+    error,
+    actions,
+    spot,
+    isBroken,
+    onBroken,
+    onFocus,
+    onAction,
+    onOpenPicture,
+  }: Props = $props();
 
   const MAX_AVATARS = 3;
 
@@ -39,6 +56,13 @@
   const size = $derived(sizeLabel(game.sizeOnDisk));
   const folder = $derived(libraryFolder(ready?.installDir ?? null));
   const trophies = $derived(achievements?.status === "ready" ? achievements : null);
+  const history = $derived(sessions ?? []);
+  const played = $derived(sessionsOf(game.id, history));
+  const recent = $derived(recentMinutes(game, history, now));
+  const weeks = $derived(weekTotals(history, now, 12, game.id));
+  const busiestWeek = $derived(Math.max(60, ...weeks.map((week) => week.minutes)));
+  const longest = $derived(Math.max(0, ...played.map(sessionMinutes)));
+  const lastSession = $derived(played[0] ?? null);
 
   const pictureButtons: HTMLButtonElement[] = [];
 
@@ -137,10 +161,30 @@
     <div class="stat">
       <span class="stat-label">Play time</span>
       <span class="stat-value">{playTime ?? (game.playTime === 0 ? "Not played yet" : "—")}</span>
+      {#if recent > 0}
+        <span class="stat-note">{durationLabel(recent)} in the last 2 weeks</span>
+      {/if}
+      {#if played.length > 0}
+        <span class="spark" role="img" aria-label="Your play time on {game.name} per week, over the last 12 weeks">
+          {#each weeks as week, index (index)}
+            <span
+              class="spark-bar"
+              class:current={week.current}
+              style:height="{week.minutes === 0 ? 2 : Math.max(4, Math.round((week.minutes / busiestWeek) * 26))}px"
+            ></span>
+          {/each}
+        </span>
+      {/if}
     </div>
     <div class="stat">
       <span class="stat-label">Last played</span>
       <span class="stat-value">{running ? "Right now" : (lastPlayed ?? (game.playTime === null ? "—" : "Never"))}</span>
+      {#if lastSession && !running}
+        <span class="stat-note">Last session {durationLabel(sessionMinutes(lastSession))}</span>
+      {/if}
+      {#if played.length > 1}
+        <span class="stat-note">Longest {durationLabel(longest)}</span>
+      {/if}
     </div>
     <div class="stat">
       <span class="stat-label">Friends playing</span>
@@ -423,6 +467,24 @@
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
+  }
+
+  .spark {
+    margin-top: 4px;
+    height: 26px;
+    display: flex;
+    align-items: flex-end;
+    gap: 3px;
+  }
+
+  .spark-bar {
+    flex: 1;
+    border-radius: 2px;
+    background: rgba(255, 255, 255, 0.24);
+  }
+
+  .spark-bar.current {
+    background: var(--text);
   }
 
   .avatars {

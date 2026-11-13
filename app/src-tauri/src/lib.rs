@@ -8,6 +8,7 @@ mod folder;
 mod focus;
 mod friends;
 mod game;
+mod history;
 mod lightbar;
 mod logo;
 mod pad;
@@ -101,6 +102,19 @@ fn open_psn_page(app: tauri::AppHandle, page: String) -> Result<(), String> {
 #[tauri::command]
 fn set_friend_pinned(app: tauri::AppHandle, friend_id: String, pinned: bool) -> Result<(), String> {
     settings::set_friend_pinned(&settings::path(&app)?, &friend_id, pinned)
+}
+
+#[tauri::command]
+async fn get_play_history(app: tauri::AppHandle) -> Vec<history::PlaySession> {
+    let mut sessions = history::path(&app).map(|path| history::load(&path)).unwrap_or_default();
+    if let Some(current) = session::current(&app) {
+        sessions.push(history::PlaySession {
+            game_id: current.game_id,
+            start: current.started_at_ms / 1000,
+            end: session::now_ms() / 1000,
+        });
+    }
+    sessions
 }
 
 #[tauri::command]
@@ -489,6 +503,7 @@ pub fn run() {
             open_psn_page,
             set_friend_pinned,
             get_achievements,
+            get_play_history,
             get_game_details,
             open_game_folder,
             save_steam_api_key,

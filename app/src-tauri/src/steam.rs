@@ -84,8 +84,8 @@ pub fn scan(logo_cache: Option<&Path>) -> Vec<Game> {
         })
         .filter(|manifest| seen_app_ids.insert(manifest.app_id.clone()))
         .map(|manifest| {
-            let play_time = play_times.as_ref().map(|times| times.get(&manifest.app_id).copied().unwrap_or(0));
-            to_game(manifest, &cache, logo_cache, play_time)
+            let times = play_times.as_ref().map(|times| times.get(&manifest.app_id).copied().unwrap_or_default());
+            to_game(manifest, &cache, logo_cache, times)
         })
         .collect()
 }
@@ -152,7 +152,13 @@ fn download_of(flags: u32, state: &vdf::Vdf) -> Option<Download> {
     })
 }
 
-pub fn parse_play_times(content: &str) -> HashMap<String, u64> {
+#[derive(Debug, Default, Clone, Copy, PartialEq, Eq)]
+pub struct PlayTimes {
+    pub total: u64,
+    pub two_weeks: u64,
+}
+
+pub fn parse_play_times(content: &str) -> HashMap<String, PlayTimes> {
     let apps = vdf::parse(content).and_then(|doc| {
         doc.get("UserLocalConfigStore")?
             .get("Software")?
@@ -163,7 +169,11 @@ pub fn parse_play_times(content: &str) -> HashMap<String, u64> {
     });
     apps.unwrap_or_default()
         .into_iter()
-        .filter_map(|(app_id, app)| Some((app_id, app.text("Playtime")?.parse().ok()?)))
+        .filter_map(|(app_id, app)| {
+            let total = app.text("Playtime")?.parse().ok()?;
+            let two_weeks = app.text("Playtime2wks").and_then(|value| value.parse().ok()).unwrap_or(0);
+            Some((app_id, PlayTimes { total, two_weeks }))
+        })
         .collect()
 }
 
@@ -200,7 +210,7 @@ fn folder_key(path: &Path) -> String {
         .to_lowercase()
 }
 
-fn account_play_times(root: &Path) -> Option<HashMap<String, u64>> {
+fn account_play_times(root: &Path) -> Option<HashMap<String, PlayTimes>> {
     let userdata = root.join("userdata");
     let config_of = |account: &Path| account.join("config").join("localconfig.vdf");
     let active = active_account_id()
@@ -237,7 +247,7 @@ fn read_manifests(steamapps: &Path) -> Vec<Manifest> {
         .collect()
 }
 
-fn to_game(manifest: Manifest, cache: &Path, logo_cache: Option<&Path>, play_time: Option<u64>) -> Game {
+fn to_game(manifest: Manifest, cache: &Path, logo_cache: Option<&Path>, times: Option<PlayTimes>) -> Game {
     let cached = |names: &[&str]| names.iter().find_map(|file| find_cached_image(cache, &manifest.app_id, file));
     let image = |cached_names: &[&str], cdn_name: &str| {
         Some(cached(cached_names).unwrap_or_else(|| format!("{CDN_BASE}/{}/{cdn_name}", manifest.app_id)))
@@ -261,7 +271,8 @@ fn to_game(manifest: Manifest, cache: &Path, logo_cache: Option<&Path>, play_tim
         name: manifest.name,
         last_played: manifest.last_played,
         size_on_disk: manifest.size_on_disk,
-        play_time,
+        play_time: times.map(|times| times.total),
+        recent_play_time: times.map(|times| times.two_weeks),
         hidden: false,
         download: manifest.download,
     }
@@ -420,12 +431,19 @@ mod tests {
             {
                 "Software" { "Valve" { "Steam" { "apps"
                 {
-                    "730" { "LastPlayed" "1762800000" "Playtime" "4210" }
+                    "730" { "LastPlayed" "1762800000" "Playtime" "4210" "Playtime2wks" "315" }
+                    "570" { "Playtime" "12" }
                     "252950" { "cloud" { "last_sync_state" "synchronized" } }
                 } } } }
             }"#,
         );
-        assert_eq!(times, HashMap::from([("730".to_string(), 4210)]));
+        assert_eq!(
+            times,
+            HashMap::from([
+                ("730".to_string(), PlayTimes { total: 4210, two_weeks: 315 }),
+                ("570".to_string(), PlayTimes { total: 12, two_weeks: 0 }),
+            ])
+        );
     }
 
     #[test]

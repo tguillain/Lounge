@@ -153,6 +153,7 @@ fn to_game(install: &Install, catalog: &HashMap<String, CatalogEntry>, play_log:
         last_played: played.map_or(0, |played| played.last_played),
         size_on_disk: install.install_size,
         play_time: played.map(|played| played.minutes),
+        recent_play_time: None,
         images: entry.map(|entry| entry.images.clone()).unwrap_or_default(),
         hidden: false,
         download: None,
