@@ -93,7 +93,7 @@ export const watchGamepads = (onAction: (action: PadAction, family: ControllerFa
 };
 
 export const pulse = () => {
-  for (const pad of connectedPads()) {
+  for (const pad of connectedPads().filter((pad) => !(dualSense.readByLounge && isDualSense(pad.id)))) {
     pad.vibrationActuator
       ?.playEffect("dual-rumble", { duration: 18, weakMagnitude: 0.25, strongMagnitude: 0 })
       .catch(() => {});

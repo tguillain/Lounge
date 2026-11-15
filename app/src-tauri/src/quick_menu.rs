@@ -1,4 +1,6 @@
-use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::atomic::{AtomicBool, AtomicU8, Ordering};
+
+use serde::Serialize;
 
 use tauri::{AppHandle, Emitter, Manager, WebviewUrl, WebviewWindowBuilder};
 
@@ -7,6 +9,46 @@ use crate::session;
 
 pub const LABEL: &str = "quickmenu";
 pub const OPEN_SETTINGS_EVENT: &str = "open-settings";
+pub const FAMILY_EVENT: &str = "controller-family";
+
+/// Which controller drove the Quick Menu last, so it shows the right buttons.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "lowercase")]
+pub enum Family {
+    PlayStation,
+    Xbox,
+    Keyboard,
+}
+
+static LAST_FAMILY: AtomicU8 = AtomicU8::new(0);
+
+impl Family {
+    fn code(self) -> u8 {
+        match self {
+            Family::PlayStation => 0,
+            Family::Xbox => 1,
+            Family::Keyboard => 2,
+        }
+    }
+
+    fn from_code(code: u8) -> Self {
+        match code {
+            1 => Family::Xbox,
+            2 => Family::Keyboard,
+            _ => Family::PlayStation,
+        }
+    }
+}
+
+pub fn last_family() -> Family {
+    Family::from_code(LAST_FAMILY.load(Ordering::SeqCst))
+}
+
+fn remember_family(app: &AppHandle, family: Family) {
+    if LAST_FAMILY.swap(family.code(), Ordering::SeqCst) != family.code() {
+        let _ = app.emit_to(LABEL, FAMILY_EVENT, family);
+    }
+}
 const PANEL_WIDTH: f64 = 440.0;
 const MARGIN: f64 = 24.0;
 
@@ -36,24 +78,27 @@ fn placement(area_x: f64, area_y: f64, area_width: f64, area_height: f64) -> Pla
     Placement { x: area_x + area_width - width, y: area_y, width, height: area_height }
 }
 
-pub fn handle_button(app: &AppHandle, button: PadButton) {
+pub fn handle_button(app: &AppHandle, button: PadButton, family: Family) {
     if button == PadButton::Ps {
         if session::current(app).is_some() {
+            remember_family(app, family);
             toggle(app);
         } else if let Some(main) = app.get_webview_window(crate::window::MAIN_LABEL)
             && main.is_focused().unwrap_or(false)
         {
-            let _ = app.emit_to(crate::window::MAIN_LABEL, "power-button", ());
+            let _ = app.emit_to(crate::window::MAIN_LABEL, "power-button", family);
         }
         return;
     }
     if app.get_webview_window(LABEL).is_some() {
+        remember_family(app, family);
         let _ = app.emit_to(LABEL, "pad-action", action_name(button));
     }
 }
 
 pub fn toggle_from_keyboard(app: &AppHandle) {
     if session::current(app).is_some() {
+        remember_family(app, Family::Keyboard);
         toggle(app);
     }
 }

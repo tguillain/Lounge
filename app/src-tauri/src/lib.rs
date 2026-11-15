@@ -27,6 +27,7 @@ mod update;
 mod vdf;
 mod watcher;
 mod window;
+mod xbox;
 
 use std::path::PathBuf;
 
@@ -68,6 +69,7 @@ const ALLOWED_LAUNCH_PREFIXES: [&str; 4] =
     ["steam://rungameid/", "steam://install/", "steam://joinlobby/", "com.epicgames.launcher://apps/"];
 const STEAM_API_KEY_PAGE: &str = "https://steamcommunity.com/dev/apikey";
 const RELEASES_PAGE: &str = "https://github.com/tguillain/lounge/releases";
+const GAME_BAR_SETTINGS: &str = "ms-settings:gaming-gamebar";
 const ONE_INSTANCE_ONLY: bool = !cfg!(debug_assertions);
 
 #[tauri::command]
@@ -212,6 +214,11 @@ fn open_steam_api_key_page(app: tauri::AppHandle) -> Result<(), String> {
 }
 
 #[tauri::command]
+fn open_game_bar_settings(app: tauri::AppHandle) -> Result<(), String> {
+    app.opener().open_url(GAME_BAR_SETTINGS, None::<&str>).map_err(|error| error.to_string())
+}
+
+#[tauri::command]
 fn open_releases_page(app: tauri::AppHandle) -> Result<(), String> {
     app.opener().open_url(RELEASES_PAGE, None::<&str>).map_err(|error| error.to_string())
 }
@@ -224,6 +231,11 @@ async fn check_for_update(app: tauri::AppHandle) -> Result<Option<update::Availa
 #[tauri::command]
 async fn install_update(app: tauri::AppHandle) -> Result<(), String> {
     update::install(&app).await
+}
+
+#[tauri::command]
+fn get_controller_family() -> quick_menu::Family {
+    quick_menu::last_family()
 }
 
 #[tauri::command]
@@ -492,6 +504,7 @@ pub fn run() {
             build_tray(app)?;
             watcher::spawn(app.handle().clone());
             pad::spawn(app.handle().clone());
+            xbox::spawn(app.handle().clone());
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
@@ -515,6 +528,8 @@ pub fn run() {
             quick_menu_open_settings,
             take_settings_request,
             get_controller_battery,
+            get_controller_family,
+            open_game_bar_settings,
             is_dualsense_read_by_lounge,
             set_lightbar,
             release_lightbar,

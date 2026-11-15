@@ -19,6 +19,8 @@
     setAudioOutput,
     setMuted,
     setVolume,
+    watchControllerFamily,
+    type ControllerFamilyName,
   } from "$lib/api";
   import { currentOutputLabel, markCurrent, outputTitle } from "$lib/audio";
   import { clockLabel, dateLabel, placeholderArt, playTimeLabel, totalPlayTimeLabel } from "$lib/format";
@@ -45,6 +47,7 @@
   const SOUNDS: Partial<Record<PadAction, Sound>> = { up: "move", down: "move", left: "move", right: "move", confirm: "select", back: "back" };
 
   let session = $state<Session | null>(null);
+  let controllerFamily = $state<ControllerFamilyName>("playstation");
   let now = $state(new Date());
   let spot = $state<Spot>(FIRST_SPOT);
   let sheet = $state<Sheet | null>(null);
@@ -221,6 +224,7 @@
     const action = KEY_ACTIONS[event.key];
     if (action) {
       event.preventDefault();
+      controllerFamily = "keyboard";
       handleAction(action);
     }
   };
@@ -267,10 +271,12 @@
 
     const clock = setInterval(() => (now = new Date()), CLOCK_REFRESH_MS);
     const stopListening = onControllerAction(handleAction);
+    const stopFamily = watchControllerFamily((family) => (controllerFamily = family));
 
     return () => {
       clearInterval(clock);
       stopListening.then((stop) => stop());
+      stopFamily.then((stop) => stop());
     };
   });
 </script>
@@ -475,7 +481,7 @@
   {/if}
 
   <footer>
-    <Hints mode="playstation" {hints} />
+    <Hints mode={controllerFamily} {hints} />
   </footer>
 </aside>
 

@@ -361,11 +361,29 @@ export const releaseLightbar = async (): Promise<void> => {
   }
 };
 
-export const onPowerButton = async (handle: () => void): Promise<() => void> => {
+export type ControllerFamilyName = "playstation" | "xbox" | "keyboard";
+
+export const onPowerButton = async (handle: (family: ControllerFamilyName) => void): Promise<() => void> => {
   if (!runsInTauri) {
     return () => {};
   }
-  return getCurrentWebviewWindow().listen("power-button", () => handle());
+  return getCurrentWebviewWindow().listen<ControllerFamilyName>("power-button", (event) => handle(event.payload ?? "playstation"));
+};
+
+/** Which controller opened or drove the Quick Menu last, and its changes. */
+export const watchControllerFamily = async (handle: (family: ControllerFamilyName) => void): Promise<() => void> => {
+  if (!runsInTauri) {
+    return () => {};
+  }
+  const stop = await getCurrentWebviewWindow().listen<ControllerFamilyName>("controller-family", (event) => handle(event.payload));
+  handle(await invoke<ControllerFamilyName>("get_controller_family"));
+  return stop;
+};
+
+export const openGameBarSettings = async (): Promise<void> => {
+  if (runsInTauri) {
+    await invoke("open_game_bar_settings");
+  }
 };
 
 let previewOutputs: AudioOutput[] = [

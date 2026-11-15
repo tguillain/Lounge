@@ -80,7 +80,8 @@ describe("sectionsOf", () => {
   it("groups rows by section and keeps their position in the list", () => {
     const groups = sectionsOf(settingsRows(preferences, "connected", upToDate));
     expect(groups.map((group) => group.section)).toEqual(["General", "Controller", "In game", "Friends", "About"]);
-    expect(groups[3].rows.map(({ index }) => index)).toEqual([6, 7, 8, 9]);
+    expect(groups[1].rows.map(({ row }) => row.id)).toEqual(["vibration", "lightbar", "xbox-button"]);
+    expect(groups[3].rows.map(({ index }) => index)).toEqual([7, 8, 9, 10]);
     expect(groups[4].rows.map(({ row }) => row.id)).toEqual(["update", "releases"]);
   });
 

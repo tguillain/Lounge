@@ -11,7 +11,7 @@ export type SettingsRow =
   | (RowBase & { kind: "toggle"; toggle: Toggle | "startWithWindows"; on: boolean; available: boolean })
   | (RowBase & {
       kind: "action";
-      action: "steam-key" | "remove-key" | "psn-connect" | "psn-disconnect" | "quick-menu-shortcut" | "update" | "releases";
+      action: "steam-key" | "remove-key" | "psn-connect" | "psn-disconnect" | "quick-menu-shortcut" | "game-bar" | "update" | "releases";
       value?: string;
       danger?: boolean;
       highlight?: boolean;
@@ -126,6 +126,15 @@ export const settingsRows = (
     description: "Your DualSense glows in the colors of the selected game.",
     on: preferences.lightbar,
     available: true,
+  },
+  {
+    id: "xbox-button",
+    section: "Controller",
+    kind: "action",
+    action: "game-bar",
+    label: "Xbox button",
+    description: "Opens the Quick Menu in game. Turn off Game Bar's \"Open Xbox Game Bar using this button\" so it doesn't open too.",
+    value: "Windows settings",
   },
   shortcutRow(preferences, capturingShortcut),
   {

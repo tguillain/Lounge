@@ -33,7 +33,8 @@ Steam's Big Picture mode is heavy. Store launchers are noisy. Lounge is neither:
 - Full navigation with a **PS5 DualSense**, an Xbox pad, or keyboard and mouse. Switch any time.
 - On-screen hints follow what you're holding: ✕ ○ △ for PlayStation, A B Y for Xbox, keys for the keyboard.
 - Haptic tick as you move between games, and soft, low navigation sounds you can turn off.
-- The DualSense **light bar takes the colors of the selected game**, and its battery level sits next to the clock, over USB or Bluetooth.
+- The DualSense **light bar takes the colors of the selected game**, and its battery level sits next to the clock, over USB or Bluetooth. A wireless Xbox controller shows its battery there too.
+- The **Xbox button** works like the PS button: it opens the Quick Menu in game and the Control Center on Home. Turn off Game Bar's own use of that button in Windows (Settings shows you where), or both open.
 
 ### 🏠 A home screen worth landing on
 - Full-bleed hero art and the game's official logo, straight from Steam's local cache.
@@ -105,8 +106,8 @@ Steam's Big Picture mode is heavy. Store launchers are noisy. Lounge is neither:
 | Search the library | □ | X | / or Ctrl+F |
 | Home ⇄ Library ⇄ Stats | L1 / R1 | LB / RB | Q / E |
 | Settings | Options | Menu | Tab |
-| Control Center (on Home) | PS | | Power icon |
-| Quick Menu (in game) | PS | | Your shortcut, set in Settings |
+| Control Center (on Home) | PS | Xbox button | Power icon |
+| Quick Menu (in game) | PS | Xbox button | Your shortcut, set in Settings |
 | Full screen | | | F11 |
 
 ## Stores
@@ -187,6 +188,7 @@ app/
    ├─ history.rs             Every session, dated, for the Stats tab
    ├─ process.rs             Running games, even ones started as administrator
    ├─ pad.rs, quick_menu.rs  DualSense over HID and the PS button overlay
+   ├─ xbox.rs                Xbox controllers through XInput: Xbox button, Quick Menu, battery
    ├─ shortcut.rs            The Quick Menu keyboard shortcut, held only in game
    ├─ dualsense_output.rs    Rumble and light bar reports for the DualSense
    ├─ lightbar.rs            The light bar color of each game
@@ -219,6 +221,7 @@ app/
 - [x] PlayStation friends, and pinned friends
 - [x] Stats: play time per day and week, streaks, most played games
 - [x] Steam games you own but haven't installed, with an Install button
+- [x] The Xbox button, the Quick Menu and the battery with an Xbox controller
 - [ ] GOG, EA, Ubisoft and Battle.net libraries, and adding any game by hand
 
 ## License

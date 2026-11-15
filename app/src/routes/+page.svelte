@@ -46,6 +46,7 @@
     onSteamDownloads,
     onSteamInstallWindow,
     onUpdateProgress,
+    openGameBarSettings,
     openGameFolder,
     openPsnPage,
     openReleasesPage,
@@ -870,6 +871,8 @@
     } else if (row.action === "remove-key") {
       forgetKey();
       settingsIndex = Math.max(0, settingsIndex - 1);
+    } else if (row.action === "game-bar") {
+      openGameBarSettings().catch((error) => (settingsNote = `Couldn't open Windows settings: ${error}`));
     } else if (row.action === "psn-connect") {
       connectDialog = "psn";
     } else if (row.action === "psn-disconnect") {
@@ -1622,8 +1625,8 @@
       }, INSTALL_GRACE_MS);
     });
 
-    const stopPowerButton = onPowerButton(() => {
-      inputMode = "playstation";
+    const stopPowerButton = onPowerButton((family) => {
+      inputMode = family === "xbox" ? "xbox" : "playstation";
       act("power");
     });
 

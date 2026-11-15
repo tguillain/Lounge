@@ -18,8 +18,8 @@ const READ_TIMEOUT_MS: i32 = 50;
 const STICK_CENTER: i16 = 128;
 const STICK_DEADZONE: i16 = 64;
 const USB_INPUT_LENGTH: usize = 64;
-const PULSE_STRENGTH: u8 = 0x70;
-const PULSE_DURATION: Duration = Duration::from_millis(35);
+const PULSE_STRENGTH: u8 = 0xA8;
+const PULSE_DURATION: Duration = Duration::from_millis(45);
 const USB_STATUS_OFFSET: usize = 53;
 const BLUETOOTH_REPORT_ID: u8 = 0x31;
 const BLUETOOTH_INPUT_LENGTH: usize = 78;
@@ -40,6 +40,7 @@ enum PadCommand {
 pub struct PadControl {
     commands: Sender<PadCommand>,
     battery: Mutex<Option<Battery>>,
+    xbox_battery: Mutex<Option<Battery>>,
     light: Mutex<Option<[u8; 3]>>,
     connected: AtomicBool,
 }
@@ -60,8 +61,10 @@ impl PadControl {
         self.light.lock().ok().and_then(|light| *light)
     }
 
+    /// The DualSense's battery, or else an Xbox controller's.
     pub fn battery(&self) -> Option<Battery> {
-        self.battery.lock().ok().and_then(|battery| *battery)
+        let dualsense = self.battery.lock().ok().and_then(|battery| *battery);
+        dualsense.or_else(|| self.xbox_battery.lock().ok().and_then(|battery| *battery))
     }
 
     /// Lounge reads this DualSense itself, so the interface ignores what the
@@ -119,7 +122,7 @@ pub enum PadButton {
 
 pub fn spawn(app: AppHandle) {
     let (sender, commands) = mpsc::channel();
-    app.manage(PadControl { commands: sender, battery: Mutex::new(None), light: Mutex::new(None), connected: AtomicBool::new(false) });
+    app.manage(PadControl { commands: sender, battery: Mutex::new(None), xbox_battery: Mutex::new(None), light: Mutex::new(None), connected: AtomicBool::new(false) });
     thread::spawn(move || loop {
         if let Ok(mut api) = HidApi::new() {
             loop {
@@ -157,6 +160,7 @@ pub fn device_transport(bus: BusType, path: &str) -> Option<Transport> {
 struct Output<'a> {
     device: &'a HidDevice,
     transport: Option<Transport>,
+    vibration_v2: bool,
     sequence: u8,
     lit: Option<[u8; 3]>,
     startup_glow_stopped: bool,
@@ -195,16 +199,15 @@ fn read_until_disconnected(app: &AppHandle, device: &HidDevice, transport: Optio
     let mut previous = Buttons::default();
     let mut rumble_ends_at: Option<Instant> = None;
     let mut asked_for_full_reports: Option<Instant> = None;
-    let mut output = Output { device, transport, sequence: 0, lit: None, startup_glow_stopped: false };
+    let mut output = Output { device, transport, vibration_v2: reads_vibration_v2(device), sequence: 0, lit: None, startup_glow_stopped: false };
     commands.try_iter().for_each(drop);
     loop {
         let pulse_requested = commands.try_iter().fold(false, |pulse, command| pulse || matches!(command, PadCommand::Pulse));
-        let wired = output.transport == Some(Transport::Usb);
-        if pulse_requested && wired && output.send(&dualsense_output::rumble(PULSE_STRENGTH)) {
+        if pulse_requested && output.send(&dualsense_output::rumble(PULSE_STRENGTH, output.vibration_v2)) {
             rumble_ends_at = Some(Instant::now() + PULSE_DURATION);
         }
         if rumble_ends_at.is_some_and(|end| Instant::now() >= end) {
-            output.send(&dualsense_output::rumble(0));
+            output.send(&dualsense_output::rumble(0, output.vibration_v2));
             rumble_ends_at = None;
         }
         output.show(app.state::<PadControl>().wanted_light());
@@ -230,7 +233,7 @@ fn read_until_disconnected(app: &AppHandle, device: &HidDevice, transport: Optio
                 }
                 if let Some(current) = parse_report(report, layout) {
                     for button in newly_pressed(previous, current) {
-                        quick_menu::handle_button(app, button);
+                        quick_menu::handle_button(app, button, quick_menu::Family::PlayStation);
                     }
                     if held_actions(&current) != held_actions(&previous) {
                         let _ = app.emit_to(window::MAIN_LABEL, HELD_EVENT, held_actions(&current));
@@ -252,14 +255,31 @@ fn publish_connected(app: &AppHandle, connected: bool) {
 }
 
 fn publish_battery(app: &AppHandle, battery: Option<Battery>) {
+    store_battery(app, |pad| &pad.battery, battery);
+}
+
+pub fn publish_xbox_battery(app: &AppHandle, battery: Option<Battery>) {
+    store_battery(app, |pad| &pad.xbox_battery, battery);
+}
+
+fn store_battery(app: &AppHandle, slot: fn(&PadControl) -> &Mutex<Option<Battery>>, battery: Option<Battery>) {
     let pad = app.state::<PadControl>();
-    let Ok(mut current) = pad.battery.lock() else {
+    let shown_before = pad.battery();
+    let Ok(mut current) = slot(&pad).lock() else {
         return;
     };
-    if *current != battery {
-        *current = battery;
-        let _ = app.emit(BATTERY_EVENT, battery);
+    *current = battery;
+    drop(current);
+    let shown = pad.battery();
+    if shown != shown_before {
+        let _ = app.emit(BATTERY_EVENT, shown);
     }
+}
+
+fn reads_vibration_v2(device: &HidDevice) -> bool {
+    let mut firmware = [0u8; dualsense_output::FIRMWARE_REPORT_LENGTH];
+    firmware[0] = dualsense_output::FIRMWARE_FEATURE_REPORT;
+    device.get_feature_report(&mut firmware).is_ok_and(|length| dualsense_output::uses_vibration_v2(&firmware[..length]))
 }
 
 fn ask_for_full_reports(device: &HidDevice) {
@@ -443,6 +463,44 @@ mod tests {
         let mut report = vec![0u8; 78];
         report[..10].copy_from_slice(&[0x01, 0x80, 0x80, 0x80, 0x80, DPAD_NONE | 0x20, 0x00, 0x01, 0, 0]);
         report
+    }
+
+    #[test]
+    #[ignore = "makes a real DualSense connected to this PC vibrate"]
+    fn pulses_a_live_dualsense() {
+        let api = HidApi::new().unwrap();
+        let Some((device, transport)) = open_dualsense(&api) else {
+            println!("no DualSense connected");
+            return;
+        };
+        let transport = transport.unwrap_or(Transport::Usb);
+        println!("transport: {transport:?}");
+        let vibration_v2 = reads_vibration_v2(&device);
+        println!("newer rumble mode: {vibration_v2}");
+        if transport == Transport::Bluetooth {
+            ask_for_full_reports(&device);
+            thread::sleep(Duration::from_millis(200));
+        }
+        let mut output = Output { device: &device, transport: Some(transport), vibration_v2, sequence: 0, lit: None, startup_glow_stopped: false };
+        let mut buffer = [0u8; 128];
+        let mut reads = 0;
+        let listening = Instant::now();
+        while listening.elapsed() < Duration::from_millis(500) {
+            if device.read_timeout(&mut buffer, READ_TIMEOUT_MS).unwrap_or(0) > 0 {
+                reads += 1;
+            }
+        }
+        println!("input reports in 500 ms: {reads}");
+        for _ in 0..5 {
+            let started = Instant::now();
+            let sent = output.send(&dualsense_output::rumble(0xC0, vibration_v2));
+            let on = started.elapsed();
+            thread::sleep(Duration::from_millis(60));
+            let started = Instant::now();
+            output.send(&dualsense_output::rumble(0, vibration_v2));
+            println!("rumble sent: {sent}, write on took {on:?}, write off took {:?}", started.elapsed());
+            thread::sleep(Duration::from_millis(300));
+        }
     }
 
     #[test]

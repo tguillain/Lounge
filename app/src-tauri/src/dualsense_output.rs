@@ -16,7 +16,15 @@ const VALID_FLAG2: usize = 38;
 const LIGHTBAR_SETUP: usize = 41;
 const LIGHTBAR_RED: usize = 44;
 
-const RUMBLE_FLAGS: u8 = 0x03;
+const COMPATIBLE_VIBRATION: u8 = 0x01;
+const HAPTICS_SELECT: u8 = 0x02;
+const COMPATIBLE_VIBRATION2: u8 = 0x04;
+pub const FIRMWARE_FEATURE_REPORT: u8 = 0x20;
+pub const FIRMWARE_REPORT_LENGTH: usize = 64;
+const UPDATE_VERSION_OFFSET: usize = 44;
+/// Firmware 2.21 slowed the original rumble emulation down and added a second
+/// one; Linux's driver switches at the same version.
+const VIBRATION_V2_SINCE: u16 = 0x0215;
 const LIGHTBAR_CONTROL: u8 = 0x04;
 const RELEASE_LEDS: u8 = 0x08;
 const LIGHTBAR_SETUP_CONTROL: u8 = 0x02;
@@ -30,11 +38,25 @@ pub enum Transport {
 
 pub type Common = [u8; COMMON_LENGTH];
 
-pub fn rumble(strength: u8) -> Common {
+pub fn rumble(strength: u8, vibration_v2: bool) -> Common {
     let mut common = [0u8; COMMON_LENGTH];
-    common[VALID_FLAG0] = RUMBLE_FLAGS;
+    if vibration_v2 {
+        common[VALID_FLAG0] = HAPTICS_SELECT;
+        common[VALID_FLAG2] = COMPATIBLE_VIBRATION2;
+    } else {
+        common[VALID_FLAG0] = HAPTICS_SELECT | COMPATIBLE_VIBRATION;
+    }
     common[MOTOR_RIGHT] = strength;
     common
+}
+
+/// Reads the firmware feature report: true when the controller wants the
+/// newer rumble mode, which reacts without the delay of the original one.
+pub fn uses_vibration_v2(firmware_report: &[u8]) -> bool {
+    firmware_report
+        .get(UPDATE_VERSION_OFFSET..UPDATE_VERSION_OFFSET + 2)
+        .map(|bytes| u16::from_le_bytes([bytes[0], bytes[1]]))
+        .is_some_and(|version| version >= VIBRATION_V2_SINCE)
 }
 
 pub fn lightbar([red, green, blue]: [u8; 3]) -> Common {
@@ -96,10 +118,24 @@ mod tests {
 
     #[test]
     fn builds_a_usb_rumble_report_for_the_weak_motor() {
-        let usb = report(Transport::Usb, 0, &rumble(0x70));
+        let usb = report(Transport::Usb, 0, &rumble(0x70, false));
         assert_eq!(usb.len(), 48);
         assert_eq!(&usb[..5], &[0x02, 0x03, 0x00, 0x70, 0x00]);
         assert!(usb[5..].iter().all(|byte| *byte == 0));
+    }
+
+    #[test]
+    fn uses_the_newer_rumble_mode_on_recent_firmware() {
+        let usb = report(Transport::Usb, 0, &rumble(0x70, true));
+        assert_eq!(&usb[..4], &[0x02, 0x02, 0x00, 0x70]);
+        assert_eq!(usb[1 + VALID_FLAG2], 0x04);
+        let mut firmware = [0u8; 64];
+        firmware[0] = 0x20;
+        firmware[44..46].copy_from_slice(&0x0630u16.to_le_bytes());
+        assert!(uses_vibration_v2(&firmware));
+        firmware[44..46].copy_from_slice(&0x0214u16.to_le_bytes());
+        assert!(!uses_vibration_v2(&firmware));
+        assert!(!uses_vibration_v2(&[0x20, 1, 2]));
     }
 
     #[test]
