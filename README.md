@@ -20,7 +20,7 @@ A minimal, controller-first launcher that turns your Windows library into a cons
 </div>
 
 <p align="center">
-  <img src="docs/screenshots/home.jpg" alt="Lounge's Home screen: BeamNG.drive hero art with its logo and a Play button, Steam friends online on the right, and a Recently played shelf below" width="100%" />
+  <img src="docs/screenshots/home.jpg" alt="Lounge's Home screen: Call of Duty hero art with its logo, achievements and a Play button, friends online on the right, and a Recently played shelf below" width="100%" />
 </p>
 
 ---
@@ -57,11 +57,19 @@ Steam's Big Picture mode is heavy. Store launchers are noisy. Lounge is neither:
 - **Play**, your achievements, the game's folder and more options, one button each.
 - Your Steam screenshots of the game, or the store's when you haven't taken any, full screen with ✕.
 
+<p align="center">
+  <img src="docs/screenshots/game-page.jpg" alt="Lounge's game page for Call of Duty: its logo over the hero art, genre, description and studio, Play, achievements, Game folder and More buttons, cards for play time with a 12-week chart, last played, friends playing and storage, and a strip of store screenshots" width="100%" />
+</p>
+
 ### 📊 Stats
 - A **Stats** tab next to Home and Library: your play time this week, day by day and against last week, and your streak of days played.
 - Your most played games, over the last two weeks or all time, and your last 12 weeks at a glance. ✕ on a game opens its page.
 - Each game's page shows its play time over the last two weeks, a 12-week chart, and your last and longest session.
 - Steam only keeps totals on your PC, so the day-by-day history starts the day Lounge starts counting. Totals and the last two weeks come from Steam straight away.
+
+<p align="center">
+  <img src="docs/screenshots/stats.jpg" alt="Lounge's Stats tab: 7 h 07 played this week with a bar per day and a 3-day streak, the most played games of the last two weeks, and the last 12 weeks" width="100%" />
+</p>
 
 ### 🏆 Steam achievements
 - The Home screen shows how many achievements of the selected game you've unlocked.
@@ -69,7 +77,7 @@ Steam's Big Picture mode is heavy. Store launchers are noisy. Lounge is neither:
 - Hidden achievements stay masked until you choose to reveal them.
 
 <p align="center">
-  <img src="docs/screenshots/library.jpg" alt="Lounge's Library: a grid of game covers sorted by play time, with store filters and a Hidden games filter" width="100%" />
+  <img src="docs/screenshots/library.jpg" alt="Lounge's Library on the Not installed filter: a grid of Steam game covers sorted by play time, each with a Not installed badge, next to the store and Hidden filters" width="100%" />
 </p>
 
 ### ⏯️ A Quick Menu in game
