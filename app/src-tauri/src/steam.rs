@@ -90,6 +90,14 @@ pub fn scan(logo_cache: Option<&Path>) -> Vec<Game> {
         .collect()
 }
 
+pub fn is_excluded(app_id: &str) -> bool {
+    EXCLUDED_APP_IDS.contains(&app_id)
+}
+
+pub fn cdn_image(app_id: u32, file: &str) -> String {
+    format!("{CDN_BASE}/{app_id}/{file}")
+}
+
 pub fn downloads() -> BTreeMap<String, Download> {
     let Some(root) = steam_root() else {
         return BTreeMap::new();
@@ -192,7 +200,7 @@ pub fn parse_library_folders(content: &str) -> Vec<PathBuf> {
         .collect()
 }
 
-fn library_folders(root: &Path) -> Vec<PathBuf> {
+pub fn library_folders(root: &Path) -> Vec<PathBuf> {
     let listed = fs::read_to_string(root.join("steamapps").join("libraryfolders.vdf"))
         .map(|content| parse_library_folders(&content))
         .unwrap_or_default();
@@ -273,12 +281,13 @@ fn to_game(manifest: Manifest, cache: &Path, logo_cache: Option<&Path>, times: O
         size_on_disk: manifest.size_on_disk,
         play_time: times.map(|times| times.total),
         recent_play_time: times.map(|times| times.two_weeks),
+        installed: true,
         hidden: false,
         download: manifest.download,
     }
 }
 
-fn find_cached_image(cache: &Path, app_id: &str, file: &str) -> Option<String> {
+pub fn find_cached_image(cache: &Path, app_id: &str, file: &str) -> Option<String> {
     let flat = cache.join(format!("{app_id}_{file}"));
     if flat.is_file() {
         return Some(flat.to_string_lossy().into_owned());

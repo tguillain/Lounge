@@ -11,6 +11,7 @@ mod game;
 mod history;
 mod lightbar;
 mod logo;
+mod owned;
 mod pad;
 mod playtime;
 mod power;
@@ -21,6 +22,7 @@ mod session;
 mod settings;
 mod shortcut;
 mod steam;
+mod steam_install;
 mod update;
 mod vdf;
 mod watcher;
@@ -62,7 +64,8 @@ struct Preferences {
     can_update: bool,
 }
 
-const ALLOWED_LAUNCH_PREFIXES: [&str; 3] = ["steam://rungameid/", "steam://joinlobby/", "com.epicgames.launcher://apps/"];
+const ALLOWED_LAUNCH_PREFIXES: [&str; 4] =
+    ["steam://rungameid/", "steam://install/", "steam://joinlobby/", "com.epicgames.launcher://apps/"];
 const STEAM_API_KEY_PAGE: &str = "https://steamcommunity.com/dev/apikey";
 const RELEASES_PAGE: &str = "https://github.com/tguillain/lounge/releases";
 const ONE_INSTANCE_ONLY: bool = !cfg!(debug_assertions);
@@ -102,6 +105,27 @@ fn open_psn_page(app: tauri::AppHandle, page: String) -> Result<(), String> {
 #[tauri::command]
 fn set_friend_pinned(app: tauri::AppHandle, friend_id: String, pinned: bool) -> Result<(), String> {
     settings::set_friend_pinned(&settings::path(&app)?, &friend_id, pinned)
+}
+
+#[tauri::command]
+async fn get_owned_games(app: tauri::AppHandle) -> Result<owned::OwnedResult, String> {
+    let hidden = settings::load(&settings::path(&app)?).hidden_games;
+    tauri::async_runtime::spawn_blocking(move || owned::load(&hidden)).await.map_err(|error| error.to_string())
+}
+
+#[tauri::command]
+async fn get_steam_libraries() -> Result<Vec<steam_install::Library>, String> {
+    tauri::async_runtime::spawn_blocking(steam_install::libraries).await.map_err(|error| error.to_string())
+}
+
+#[tauri::command]
+fn install_steam_game(app: tauri::AppHandle, app_id: u32, name: String) -> Result<(), String> {
+    steam_install::start(&app, app_id, name)
+}
+
+#[tauri::command]
+fn bring_lounge_back(app: tauri::AppHandle) {
+    steam_install::bring_lounge_back(&app);
 }
 
 #[tauri::command]
@@ -504,6 +528,10 @@ pub fn run() {
             set_friend_pinned,
             get_achievements,
             get_play_history,
+            get_owned_games,
+            get_steam_libraries,
+            install_steam_game,
+            bring_lounge_back,
             get_game_details,
             open_game_folder,
             save_steam_api_key,

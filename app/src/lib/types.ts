@@ -24,6 +24,7 @@ export type Game = {
   recentPlayTime: number | null;
   launchUri: string;
   images: GameImages;
+  installed: boolean;
   hidden: boolean;
   download: Download | null;
 };
@@ -60,6 +61,16 @@ export type FriendsResult =
   | { status: "not-configured" }
   | { status: "ready"; friends: Friend[] }
   | { status: "failed"; message: string };
+
+export type OwnedResult =
+  | { status: "loading" }
+  | { status: "not-configured" }
+  | { status: "ready"; games: Game[] }
+  | { status: "failed"; message: string };
+
+export type SteamLibrary = { path: string; freeBytes: number; totalBytes: number };
+
+export type InstallWindowNews = { gameId: string; state: "opened" | "closed" | "not-found" };
 
 export type LibraryState =
   | { status: "loading" }

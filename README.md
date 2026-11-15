@@ -48,6 +48,7 @@ Steam's Big Picture mode is heavy. Store launchers are noisy. Lounge is neither:
 - The line under each cover follows the sort: *145 h played*, *2 days ago*, *52 GB*.
 - **Search** with an on-screen keyboard: it ignores accents and punctuation and understands initials, so *cs2* finds Counter-Strike 2.
 - Hide the clutter (tools, demos, benchmarks) from Home without losing it.
+- The Steam games you own but haven't installed have their own **Not installed** filter, with your play time on each. Their page has an **Install** button: Lounge shows your Steam libraries and their free space, then puts Steam's install window in front of it, even in full screen, and comes back to the game's page with the download progress once it starts. This uses your Steam Web API key.
 
 ### 🗂️ A page for every game
 - Press **down** on Home, or **✕** on a game in the Library, to open its page: the art, the logo, its genres and a short description from the Steam store, the developer and the release date.
@@ -124,7 +125,7 @@ Epic doesn't keep play time on your PC, so Lounge counts it itself: every Epic s
 
 - Everything about your library is read **locally**, and the sessions Lounge counts for your stats stay in its own folder on your PC.
 - A game's page asks the Steam store for its public description, genres and screenshots, without a key or your account, and keeps the answer on disk for a week.
-- Steam friends and the full achievement lists are optional. They need a free Steam Web API key, which Lounge stores in **Windows Credential Manager**, never in a file or in this repo. Without it, achievements fall back to what Steam keeps on your PC.
+- Steam friends, the full achievement lists and the games you haven't installed are optional. They need a free Steam Web API key, which Lounge stores in **Windows Credential Manager**, never in a file or in this repo. Without it, achievements fall back to what Steam keeps on your PC.
 - PlayStation friends are optional too. You paste a sign-in token from Sony's own page once; Lounge swaps it for a sign-in that lasts about two months, keeps that in Windows Credential Manager, and only reads your friends list and their status. Sony doesn't offer a public API for this, so Lounge uses the one the PlayStation App uses, which Sony may change at any time.
 - Lounge only opens `steam://` and `com.epicgames.launcher://` launch links. Anything else is refused.
 
@@ -190,6 +191,8 @@ app/
    ├─ dualsense_output.rs    Rumble and light bar reports for the DualSense
    ├─ lightbar.rs            The light bar color of each game
    ├─ friends.rs             Steam friends via the Web API
+   ├─ owned.rs               The Steam games you own but haven't installed
+   ├─ steam_install.rs       Steam libraries, and Steam's install window brought in front
    ├─ psn.rs                 PlayStation friends via the PlayStation App's API
    ├─ achievements.rs        Steam achievements, from the Web API or Steam's cache
    ├─ details.rs             A game's store page, screenshots and install folder
@@ -215,6 +218,7 @@ app/
 - [x] A page for every game, with its screenshots
 - [x] PlayStation friends, and pinned friends
 - [x] Stats: play time per day and week, streaks, most played games
+- [x] Steam games you own but haven't installed, with an Install button
 - [ ] GOG, EA, Ubisoft and Battle.net libraries, and adding any game by hand
 
 ## License

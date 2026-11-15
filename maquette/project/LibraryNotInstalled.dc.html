@@ -1,0 +1,120 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<title>Launcher — Bibliothèque, filtre Non installés</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&amp;family=Cinzel:wght@700&amp;family=Orbitron:wght@800&amp;family=Fraunces:ital,wght@1,700&amp;family=Bebas+Neue&amp;family=Syne:wght@800&amp;family=Unbounded:wght@700&amp;family=Audiowide&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0;background:#0A0A0C}
+a{color:#F5F5F7;text-decoration:none}a:hover{color:#FFFFFF}
+</style>
+</helmet>
+<div style="width: 1440px; height: 900px; position: relative; overflow: hidden; background: #0A0A0C; color: #F5F5F7; font-family: Inter, -apple-system, 'Segoe UI', sans-serif">
+  <div style="position: relative; height: 100%; box-sizing: border-box; padding: 36px 64px 0; display: flex; flex-direction: column">
+
+    <header style="display: grid; grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr); align-items: center; gap: 24px">
+      <span style="font-size: 17px; font-weight: 600">Bonsoir</span>
+      <nav aria-label="Navigation principale" style="display: flex; gap: 4px; padding: 5px; border-radius: 999px; background: rgba(255,255,255,.08); border: 1px solid rgba(255,255,255,.08)">
+        <a href="Main.dc.html" style="padding: 10px 22px; border-radius: 999px; font-size: 15px; font-weight: 500">Accueil</a>
+        <a href="LibraryNotInstalled.dc.html" aria-current="page" style="padding: 10px 22px; border-radius: 999px; background: #F5F5F7; color: #0A0A0C; font-size: 15px; font-weight: 600">Bibliothèque</a>
+        <a href="StatsTab.dc.html" style="padding: 10px 22px; border-radius: 999px; font-size: 15px; font-weight: 500">Statistiques</a>
+      </nav>
+      <span style="justify-self: end; font-size: 17px; font-weight: 600; font-variant-numeric: tabular-nums">21:47</span>
+    </header>
+
+    <div style="display: flex; align-items: flex-end; justify-content: space-between; margin-top: 44px">
+      <div style="display: flex; align-items: baseline; gap: 16px">
+        <h1 style="margin: 0; font-size: 48px; font-weight: 700; letter-spacing: -0.03em">Bibliothèque</h1>
+        <span style="font-size: 17px; color: #AEAEB2">86 jeux à installer</span>
+      </div>
+      <span style="height: 44px; padding: 0 18px; border-radius: 999px; border: 1px solid rgba(255,255,255,.14); background: rgba(255,255,255,.08); font-size: 15px; font-weight: 500; display: flex; align-items: center">Trier : temps de jeu</span>
+    </div>
+
+    <div role="group" aria-label="Filtrer" style="display: flex; gap: 10px; margin-top: 22px">
+      <sc-for list="{{chips}}" as="chip" hint-placeholder-count="5">
+        <span style="height: 40px; padding: 0 18px; border-radius: 999px; font-size: 15px; display: flex; align-items: center; gap: 8px; background: {{chip.bg}}; color: {{chip.fg}}; border: {{chip.border}}; font-weight: {{chip.weight}}">{{chip.label}}</span>
+      </sc-for>
+    </div>
+
+    <div style="display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 32px 24px; margin-top: 32px">
+      <sc-for list="{{games}}" as="item" hint-placeholder-count="12">
+        <a href="GameDetailInstall.dc.html" style="display: flex; flex-direction: column; gap: 12px">
+          <span style="aspect-ratio: 2 / 3; border-radius: 14px; position: relative; overflow: hidden; display: flex; align-items: flex-end; justify-content: center; background: {{item.art}}; box-shadow: {{item.ring}}">
+            <span aria-hidden="true" style="position: absolute; inset: 0; background: linear-gradient(0deg, rgba(0,0,0,.55) 0%, rgba(0,0,0,0) 50%)"></span>
+            <span style="position: relative; padding: 22px 14px; text-align: center; line-height: 1.05; color: #FFFFFF; font-family: {{item.font}}; font-size: {{item.size}}; font-weight: {{item.weight}}; font-style: {{item.fs}}; text-transform: {{item.tt}}; letter-spacing: {{item.ls}}">{{item.title}}</span>
+            <span style="position: absolute; top: 10px; left: 10px; display: flex; align-items: center; gap: 6px; padding: 4px 10px; border-radius: 999px; background: rgba(10,10,12,.85); font-size: 12px; font-weight: 600; color: #D1D1D6">
+              <svg aria-hidden="true" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M7 18a4.5 4.5 0 0 1-.5-9A6 6 0 0 1 18 8a4 4 0 0 1 0 8"></path><path d="M12 12v8M9 17l3 3 3-3"></path></svg>
+              Non installé
+            </span>
+          </span>
+          <span style="display: flex; flex-direction: column; gap: 3px">
+            <span style="font-size: 15px; font-weight: 600">{{item.title}}</span>
+            <span style="font-size: 13px; color: #AEAEB2">{{item.line}}</span>
+          </span>
+        </a>
+      </sc-for>
+    </div>
+  </div>
+  <div aria-hidden="true" style="position: absolute; left: 0; right: 0; bottom: 0; height: 140px; background: linear-gradient(0deg, #0A0A0C 20%, rgba(10,10,12,0) 100%); pointer-events: none"></div>
+  <p style="position: absolute; left: 64px; bottom: 26px; margin: 0; font-size: 13px; color: #8E8E93">Les jeux Steam que tu possèdes sans les avoir installés · « Tous » ne montre que les jeux installés · ✕ ouvre la fiche avec Installer</p>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":900}}'>
+class Component extends DCLogic {
+  logos() {
+    return {
+      cinzel: { font: "Cinzel, serif", weight: '700', tt: 'uppercase', ls: '0.04em', fs: 'normal', k: 0.82 },
+      orbitron: { font: "Orbitron, sans-serif", weight: '800', tt: 'uppercase', ls: '0.02em', fs: 'normal', k: 0.8 },
+      fraunces: { font: "Fraunces, serif", weight: '700', tt: 'none', ls: '-0.02em', fs: 'italic', k: 1 },
+      bebas: { font: "'Bebas Neue', sans-serif", weight: '400', tt: 'uppercase', ls: '0.04em', fs: 'normal', k: 1.15 },
+      syne: { font: "Syne, sans-serif", weight: '800', tt: 'lowercase', ls: '-0.03em', fs: 'normal', k: 1 },
+      unbounded: { font: "Unbounded, sans-serif", weight: '700', tt: 'uppercase', ls: '0', fs: 'normal', k: 0.8 },
+      audiowide: { font: "Audiowide, sans-serif", weight: '400', tt: 'uppercase', ls: '0.04em', fs: 'normal', k: 0.9 }
+    };
+  }
+  renderVals() {
+    const labels = [['Tous', false], ['Steam', false], ['Epic Games', false], ['Non installés · 86', true], ['Masqués', false]];
+    const chips = labels.map((c) => ({
+      label: c[0],
+      bg: c[1] ? '#F5F5F7' : 'rgba(255,255,255,.08)',
+      fg: c[1] ? '#0A0A0C' : '#F5F5F7',
+      border: c[1] ? '1px solid #F5F5F7' : '1px solid rgba(255,255,255,.12)',
+      weight: c[1] ? '600' : '500'
+    }));
+    const list = [
+      ['Cité de Verre', 'fraunces', '64 h joué', ['#B3E5FC', '#5C6BC0', '#1A2340', '#0B0F1C']],
+      ['Rallye Blanc', 'bebas', '41 h joué', ['#FFFFFF', '#90A4AE', '#263238', '#101619']],
+      ['Pixel Moine', 'audiowide', '18 h joué', ['#FFB74D', '#8D6E63', '#2E1E14', '#140D08']],
+      ['Les Chaînes', 'cinzel', '9 h joué', ['#E57373', '#4A148C', '#22102E', '#0E0714']],
+      ['Lumen', 'syne', '2 h joué', ['#FFF176', '#26A69A', '#0F2A27', '#071413']],
+      ['Station Delta', 'orbitron', 'Jamais lancé', ['#80DEEA', '#283593', '#0E1433', '#060914']],
+      ['Archipel', 'unbounded', 'Jamais lancé', ['#A5D6A7', '#00897B', '#0B2622', '#051210']],
+      ['Sous la Glace', 'fraunces', 'Jamais lancé', ['#B2EBF2', '#0277BD', '#062033', '#030E17']],
+      ['Bastion', 'bebas', 'Jamais lancé', ['#FFCC80', '#BF360C', '#2A140A', '#120804']],
+      ['Néon Noir', 'orbitron', 'Jamais lancé', ['#F48FB1', '#311B92', '#1B0D2E', '#0A0514']],
+      ['Moisson', 'syne', 'Jamais lancé', ['#DCE775', '#558B2F', '#1C2610', '#0B1006']],
+      ['Le Phare', 'cinzel', 'Jamais lancé', ['#FFE082', '#37474F', '#1E2529', '#0C0F11']]
+    ];
+    const L = this.logos();
+    const games = list.map((g, i) => {
+      const l = L[g[1]];
+      const c = g[3];
+      return {
+        title: g[0], line: 'Steam · ' + g[2],
+        art: 'radial-gradient(90% 70% at 70% 18%, ' + c[0] + ' 0%, transparent 70%), radial-gradient(100% 80% at 10% 100%, ' + c[1] + ' 0%, transparent 70%), linear-gradient(170deg, ' + c[2] + ' 0%, ' + c[3] + ' 100%)',
+        ring: i === 0 ? '0 0 0 3px #0A0A0C, 0 0 0 6px #F5F5F7, 0 20px 40px rgba(0,0,0,.55)' : '0 8px 24px rgba(0,0,0,.4)',
+        font: l.font, weight: l.weight, tt: l.tt, ls: l.ls, fs: l.fs, size: Math.round(24 * l.k) + 'px'
+      };
+    });
+    return { chips: chips, games: games };
+  }
+}
+</script>
+</body>
+</html>

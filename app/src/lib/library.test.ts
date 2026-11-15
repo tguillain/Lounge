@@ -11,6 +11,7 @@ const game = (name: string, store: Store, lastPlayed: number, sizeGb: number, pl
   playTime,
   recentPlayTime: null,
   launchUri: "",
+  installed: true,
   images: { hero: null, logo: null, logoIsDark: false, header: null, cover: null },
   hidden,
   download: null,
@@ -31,6 +32,14 @@ describe("filterGames", () => {
 
   it("shows only hidden games in the hidden filter", () => {
     expect(filterGames(games, "hidden").map((g) => g.name)).toEqual(["DSX"]);
+  });
+
+  it("keeps games you own but haven't installed in their own filter", () => {
+    const owned = [...games, { ...game("Half-Life 2", "steam", 0, 0, 845), installed: false }];
+    expect(filterGames(owned, "all").map((g) => g.name)).not.toContain("Half-Life 2");
+    expect(filterGames(owned, "steam").map((g) => g.name)).not.toContain("Half-Life 2");
+    expect(filterGames(owned, "not-installed").map((g) => g.name)).toEqual(["Half-Life 2"]);
+    expect(availableFilters(owned).map((filter) => filter.label)).toEqual(["All", "Steam", "Epic Games", "Not installed (1)", "Hidden (1)"]);
   });
 });
 

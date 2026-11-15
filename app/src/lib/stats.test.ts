@@ -31,6 +31,7 @@ const game = (id: string, playTime: number | null, recentPlayTime: number | null
   playTime,
   recentPlayTime,
   launchUri: "",
+  installed: true,
   images: { hero: null, logo: null, logoIsDark: false, header: null, cover: null },
   hidden: false,
   download: null,

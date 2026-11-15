@@ -77,7 +77,13 @@
   const actionLabel = (action: DetailAction): string => {
     switch (action) {
       case "play":
-        return running ? "Back to game" : "Play";
+        if (running) {
+          return "Back to game";
+        }
+        if (!game.installed) {
+          return "Install";
+        }
+        return game.download?.kind === "install" ? "Installing…" : "Play";
       case "achievements":
         return trophies ? `${trophies.unlocked} of ${trophies.total}` : "Achievements";
       case "folder":
@@ -96,6 +102,8 @@
         <span class="chip live"><span class="live-dot"></span>Now playing</span>
       {:else if game.download}
         <span class="chip busy">{downloadLabel(game.download)}</span>
+      {:else if !game.installed}
+        <span class="chip">Not installed</span>
       {:else}
         <span class="chip installed">Installed</span>
       {/if}
@@ -136,7 +144,9 @@
           onclick={() => onAction(action)}
         >
           {#if action === "play"}
-            {#if running}
+            {#if !game.installed}
+              <svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M7 18a4.5 4.5 0 0 1-.5-9A6 6 0 0 1 18 8a4 4 0 0 1 0 8" /><path d="M12 12v8M9 17l3 3 3-3" /></svg>
+            {:else if running}
               <svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6" /></svg>
             {:else}
               <svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24"><path d="M6 3.8v16.4a1 1 0 0 0 1.5.9l13.2-8.2a1 1 0 0 0 0-1.8L7.5 2.9A1 1 0 0 0 6 3.8z" fill="currentColor" /></svg>
@@ -207,8 +217,8 @@
     </div>
     <div class="stat">
       <span class="stat-label">Storage</span>
-      <span class="stat-value">{size ?? "—"}</span>
-      {#if folder}
+      <span class="stat-value">{game.installed ? (size ?? "—") : "Not installed"}</span>
+      {#if folder && game.installed}
         <span class="stat-note" title={ready?.installDir ?? undefined}>{folder}</span>
       {/if}
     </div>
@@ -529,8 +539,10 @@
     display: flex;
     gap: 16px;
     overflow-x: auto;
-    margin: -8px calc(var(--page-gutter, 64px) * -1);
-    padding: 8px var(--page-gutter, 64px);
+    /* Room for the focused screenshot: it grows 4% and gets a 5.5px ring,
+       which the sideways scrolling would otherwise clip. */
+    margin: -16px calc(var(--page-gutter, 64px) * -1) 0;
+    padding: 16px var(--page-gutter, 64px);
     scroll-padding: 0 var(--page-gutter, 64px);
     scrollbar-width: none;
   }

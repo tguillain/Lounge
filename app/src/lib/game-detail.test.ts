@@ -7,9 +7,10 @@ import {
   genresLine,
   libraryFolder,
   moveDetail,
+  notInstalledOnly,
   picturesOf,
 } from "./game-detail";
-import type { Friend, GameDetails, StoreInfo } from "./types";
+import type { Friend, Game, GameDetails, StoreInfo } from "./types";
 
 const store: StoreInfo = {
   description: "Drive anything.",
@@ -69,6 +70,14 @@ describe("store lines", () => {
     expect(creditsLine(store)).toBe("BeamNG · 29 May 2015");
     expect(creditsLine({ ...store, developers: [] })).toBe("29 May 2015");
     expect(creditsLine(null)).toBeNull();
+  });
+});
+
+describe("notInstalledOnly", () => {
+  it("drops the owned games that are already on this PC", () => {
+    const installed = [{ id: "steam:730" }, { id: "epic:abc" }] as Game[];
+    const owned = [{ id: "steam:730", installed: false }, { id: "steam:220", installed: true }] as Game[];
+    expect(notInstalledOnly(owned, installed)).toEqual([{ id: "steam:220", installed: false }]);
   });
 });
 

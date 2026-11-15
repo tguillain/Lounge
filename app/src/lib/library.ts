@@ -1,7 +1,7 @@
 import { lastPlayedLabel, sizeLabel, storeLabel, totalPlayTimeLabel } from "./format";
 import type { Game } from "./types";
 
-export type LibraryFilter = "all" | "steam" | "epic" | "hidden";
+export type LibraryFilter = "all" | "steam" | "epic" | "not-installed" | "hidden";
 export type LibrarySort = "name" | "recent" | "playtime" | "size";
 export type FilterOption = { id: LibraryFilter; label: string };
 export type GridStep = "left" | "right" | "up" | "down";
@@ -20,12 +20,18 @@ export const SORT_LABELS: Record<LibrarySort, string> = {
 
 export const nextSort = (sort: LibrarySort): LibrarySort => SORT_ORDER[(SORT_ORDER.indexOf(sort) + 1) % SORT_ORDER.length];
 
+/** "All" and the store filters list installed games; the games you own but
+ *  haven't installed have their own filter, so they never bury the others. */
 export const filterGames = (games: Game[], filter: LibraryFilter): Game[] => {
   if (filter === "hidden") {
     return games.filter((game) => game.hidden);
   }
   const visible = games.filter((game) => !game.hidden);
-  return filter === "all" ? visible : visible.filter((game) => game.store === filter);
+  if (filter === "not-installed") {
+    return visible.filter((game) => !game.installed);
+  }
+  const installed = visible.filter((game) => game.installed);
+  return filter === "all" ? installed : installed.filter((game) => game.store === filter);
 };
 
 export const sortGames = (games: Game[], sort: LibrarySort): Game[] => {
@@ -55,13 +61,18 @@ export const sortDetail = (game: Game, sort: LibrarySort, nowSeconds: number): s
 
 export const availableFilters = (games: Game[]): FilterOption[] => {
   const visible = games.filter((game) => !game.hidden);
+  const installed = visible.filter((game) => game.installed);
+  const notInstalled = visible.length - installed.length;
   const hiddenCount = games.length - visible.length;
   const options: FilterOption[] = [{ id: "all", label: "All" }];
-  if (visible.some((game) => game.store === "steam")) {
+  if (installed.some((game) => game.store === "steam")) {
     options.push({ id: "steam", label: "Steam" });
   }
-  if (visible.some((game) => game.store === "epic")) {
+  if (installed.some((game) => game.store === "epic")) {
     options.push({ id: "epic", label: "Epic Games" });
+  }
+  if (notInstalled > 0) {
+    options.push({ id: "not-installed", label: `Not installed (${notInstalled})` });
   }
   if (hiddenCount > 0) {
     options.push({ id: "hidden", label: `Hidden (${hiddenCount})` });

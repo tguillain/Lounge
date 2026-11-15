@@ -15,9 +15,11 @@
   import SettingsView from "$lib/components/SettingsView.svelte";
   import Shelf from "$lib/components/Shelf.svelte";
   import ConnectDialog from "$lib/components/ConnectDialog.svelte";
+  import InstallDialog from "$lib/components/InstallDialog.svelte";
   import StatsView from "$lib/components/StatsView.svelte";
   import {
     backToGame,
+    bringLoungeBack,
     checkForUpdate,
     connectPsn,
     disconnectPsn,
@@ -26,6 +28,7 @@
     getPreferences,
     getSession,
     imageUrl,
+    installGame,
     installUpdate,
     joinFriend,
     launchGame,
@@ -34,11 +37,14 @@
     loadGameDetails,
     loadPlayHistory,
     loadPsnFriends,
+    loadSteamLibraries,
     loadLibrary,
+    loadOwnedGames,
     onGameSession,
     onOpenSettings,
     onPowerButton,
     onSteamDownloads,
+    onSteamInstallWindow,
     onUpdateProgress,
     openGameFolder,
     openPsnPage,
@@ -93,12 +99,23 @@
     FriendsResult,
     Game,
     LibraryState,
+    OwnedResult,
+    SteamLibrary,
     PlaySession,
     Preferences,
     Toggle,
     UpdateStatus,
   } from "$lib/types";
-  import { FIRST_DETAIL_SPOT, detailActions, friendsPlaying, moveDetail, picturesOf, type DetailAction, type DetailSpot } from "$lib/game-detail";
+  import {
+    FIRST_DETAIL_SPOT,
+    detailActions,
+    friendsPlaying,
+    moveDetail,
+    notInstalledOnly,
+    picturesOf,
+    type DetailAction,
+    type DetailSpot,
+  } from "$lib/game-detail";
 
   type View = "home" | "library" | "stats" | "settings" | "achievements" | "detail";
   type Tab = "home" | "library" | "stats";
@@ -172,6 +189,14 @@
   let viewBeforeDetail = $state<Tab>("home");
 
   let playHistory = $state<PlaySession[] | null>(null);
+  let owned = $state<OwnedResult>({ status: "loading" });
+  let installTarget = $state<Game | null>(null);
+  let installIndex = $state(0);
+  let steamLibraries = $state<SteamLibrary[] | null>(null);
+  let waitingInstall = $state<Game | null>(null);
+  let notice = $state<string | null>(null);
+  let noticeTimer: ReturnType<typeof setTimeout> | undefined;
+  let installGiveUpTimer: ReturnType<typeof setTimeout> | undefined;
   let statsPeriod = $state<StatsPeriod>("recent");
   let statsIndex = $state(0);
 
@@ -193,8 +218,11 @@
   let update = $state<UpdateStatus>({ state: "idle" });
   const showFriends = $derived(preferences?.showFriends ?? true);
 
-  const allGames = $derived(library.status === "ready" ? library.games : []);
-  const homeGames = $derived(allGames.filter((game) => !game.hidden));
+  const installedGames = $derived(library.status === "ready" ? library.games : []);
+  const allGames = $derived(
+    owned.status === "ready" ? [...installedGames, ...notInstalledOnly(owned.games, installedGames)] : installedGames,
+  );
+  const homeGames = $derived(installedGames.filter((game) => !game.hidden));
   const selected = $derived<Game | null>(homeGames[selectedIndex] ?? null);
   const selectedIsRunning = $derived(selected !== null && selected.id === runningGameId);
 
@@ -326,6 +354,7 @@
     await saveSteamApiKey(key);
     connectDialog = null;
     friendsResult = { status: "loading" };
+    refreshOwned();
     await refreshFriends();
   };
 
@@ -391,6 +420,84 @@
     }
   };
 
+  const NOTICE_MS = 6000;
+  const INSTALL_GRACE_MS = 6000;
+
+  const showNotice = (message: string) => {
+    notice = message;
+    clearTimeout(noticeTimer);
+    noticeTimer = setTimeout(() => (notice = null), NOTICE_MS);
+  };
+
+  const openInstall = async (game: Game) => {
+    launchError = null;
+    installTarget = game;
+    installIndex = 0;
+    steamLibraries = null;
+    try {
+      steamLibraries = await loadSteamLibraries();
+    } catch {
+      steamLibraries = [];
+    }
+  };
+
+  const closeInstall = () => {
+    installTarget = null;
+  };
+
+  const continueInSteam = async () => {
+    const game = installTarget;
+    if (!game) {
+      return;
+    }
+    installTarget = null;
+    waitingInstall = game;
+    clearTimeout(installGiveUpTimer);
+    try {
+      await installGame(game);
+    } catch (error) {
+      waitingInstall = null;
+      launchError = `Couldn't open Steam to install ${game.name}: ${error}`;
+    }
+  };
+
+  const stopWaitingForInstall = () => {
+    waitingInstall = null;
+    clearTimeout(installGiveUpTimer);
+  };
+
+  const installStarted = (game: Game) => {
+    stopWaitingForInstall();
+    showNotice(`Downloading ${game.name}. You can play something else meanwhile.`);
+    bringLoungeBack().catch(() => {});
+  };
+
+  const runInstallAction = (action: PadAction) => {
+    if (action === "left" || action === "right" || action === "up" || action === "down") {
+      const next = action === "left" || action === "up" ? 0 : 1;
+      if (next !== installIndex) {
+        installIndex = next;
+        feedback();
+      }
+    } else if (action === "confirm") {
+      if (installIndex === 0) {
+        continueInSteam();
+      } else {
+        closeInstall();
+      }
+    } else if (action === "back") {
+      closeInstall();
+    }
+  };
+
+  const refreshOwned = async () => {
+    try {
+      owned = await loadOwnedGames();
+    } catch (error) {
+      owned = { status: "failed", message: String(error) };
+    }
+  };
+
   const playOrReturn = (game: Game) => (game.id === runningGameId ? returnToGame() : play(game));
 
   const join = async (friend: Friend) => {
@@ -407,9 +514,12 @@
     if (library.status === "ready") {
       library = { status: "ready", games: library.games.map((g) => (g.id === game.id ? { ...g, hidden } : g)) };
     }
+    if (owned.status === "ready") {
+      owned = { status: "ready", games: owned.games.map((g) => (g.id === game.id ? { ...g, hidden } : g)) };
+    }
     selectedIndex = Math.max(0, Math.min(selectedIndex, homeGames.length - 1));
     libraryIndex = Math.max(0, Math.min(libraryIndex, libraryGames.length - 1));
-    if (libraryGames.length === 0 && libraryFilter === "hidden") {
+    if (libraryGames.length === 0 && (libraryFilter === "hidden" || libraryFilter === "not-installed")) {
       libraryFilter = "all";
     }
     try {
@@ -493,7 +603,7 @@
     detailGame
       ? detailActions({
           achievements: detailGame.store === "steam" && achievementsOf(detailGame)?.status !== "none",
-          folder: shownDetails.status === "ready" && shownDetails.installDir !== null,
+          folder: detailGame.installed && shownDetails.status === "ready" && shownDetails.installDir !== null,
         })
       : [],
   );
@@ -504,7 +614,13 @@
       return;
     }
     if (action === "play") {
-      playOrReturn(game);
+      if (!game.installed) {
+        openInstall(game);
+      } else if (game.download?.kind === "install") {
+        showNotice(`${game.name} is still downloading in Steam.`);
+      } else {
+        playOrReturn(game);
+      }
     } else if (action === "achievements") {
       openAchievements(game);
     } else if (action === "folder") {
@@ -795,7 +911,7 @@
         : []),
       {
         id: "hide",
-        label: game.hidden ? "Show on Home" : "Hide from Home",
+        label: game.installed ? (game.hidden ? "Show on Home" : "Hide from Home") : game.hidden ? "Show in Not installed" : "Hide",
         run: () => {
           closeMenu();
           toggleHidden(game);
@@ -1179,6 +1295,14 @@
   };
 
   const runAction = (action: PadAction) => {
+    if (installTarget) {
+      runInstallAction(action);
+      return;
+    }
+    if (waitingInstall && action === "back") {
+      stopWaitingForInstall();
+      return;
+    }
     if (keyDialogOpen) {
       if (action === "back") {
         connectDialog = null;
@@ -1237,7 +1361,12 @@
   };
 
   const openLayers = () =>
-    (view === "settings" || view === "achievements" ? 1 : 0) + (menuGame ? 1 : 0) + (powerOpen ? 1 : 0) + (keyDialogOpen ? 1 : 0) + (searchOpen ? 1 : 0);
+    (view === "settings" || view === "achievements" ? 1 : 0) +
+    (menuGame ? 1 : 0) +
+    (powerOpen ? 1 : 0) +
+    (keyDialogOpen ? 1 : 0) +
+    (searchOpen ? 1 : 0) +
+    (installTarget ? 1 : 0);
 
   const focusKey = () =>
     [
@@ -1259,6 +1388,7 @@
       revealedAchievements.size,
       statsIndex,
       statsPeriod,
+      installIndex,
       searchQuery,
       keyPosition.row,
       keyPosition.column,
@@ -1318,6 +1448,16 @@
   };
 
   const hints = $derived.by<Hint[]>(() => {
+    if (installTarget) {
+      return [
+        { action: "navigate", label: "Move" },
+        { action: "confirm", label: installIndex === 0 ? "Continue in Steam" : "Cancel" },
+        { action: "back", label: "Cancel" },
+      ];
+    }
+    if (waitingInstall) {
+      return [{ action: "back", label: "Stop waiting" }];
+    }
     if (searchOpen) {
       return searchWithKeys
         ? [
@@ -1346,7 +1486,9 @@
           : choice === "play"
             ? detailGame?.id === runningGameId
               ? "Back to game"
-              : "Play"
+              : detailGame?.installed === false
+                ? "Install"
+                : "Play"
             : choice === "options"
               ? "More"
               : "Open";
@@ -1422,6 +1564,7 @@
 
   onMount(() => {
     refreshLibrary();
+    refreshOwned();
     refreshFriends();
     refreshHistory();
     loadPreferences().then(lookForUpdate);
@@ -1452,6 +1595,9 @@
     const stopDualSense = watchDualSense(updateDualSense);
 
     const stopDownloads = onSteamDownloads((downloads) => {
+      if (waitingInstall && downloads[waitingInstall.id]) {
+        installStarted(waitingInstall);
+      }
       if (library.status !== "ready") {
         return;
       }
@@ -1460,6 +1606,20 @@
       if (result.needsRescan) {
         refreshLibrary();
       }
+    });
+
+    const stopInstallWindow = onSteamInstallWindow((news) => {
+      if (news.state !== "closed" || waitingInstall?.id !== news.gameId) {
+        return;
+      }
+      const game = waitingInstall;
+      clearTimeout(installGiveUpTimer);
+      installGiveUpTimer = setTimeout(() => {
+        if (waitingInstall?.id === game.id) {
+          stopWaitingForInstall();
+          showNotice(`Steam didn't start installing ${game.name}.`);
+        }
+      }, INSTALL_GRACE_MS);
     });
 
     const stopPowerButton = onPowerButton(() => {
@@ -1516,6 +1676,7 @@
       stopOpenSettings.then((stop) => stop());
       stopDownloads.then((stop) => stop());
       stopDualSense.then((stop) => stop());
+      stopInstallWindow.then((stop) => stop());
       clearTimeout(launchTimer);
       stopGamepads();
       stopListening.then((stop) => stop());
@@ -1785,6 +1946,34 @@
       onStep={(step) => runViewerAction(step === 1 ? "right" : "left")}
       onClose={() => (viewerIndex = null)}
     />
+  {/if}
+
+  {#if installTarget}
+    <InstallDialog
+      game={installTarget}
+      libraries={steamLibraries}
+      focusedIndex={installIndex}
+      {isBroken}
+      onBroken={markBroken}
+      onFocus={(index) => (installIndex = index)}
+      onContinue={continueInSteam}
+      onCancel={closeInstall}
+    />
+  {/if}
+
+  {#if waitingInstall}
+    <section class="waiting" aria-live="polite">
+      <span class="spinner" aria-hidden="true"></span>
+      <span class="waiting-text">
+        <strong>Waiting for Steam</strong>
+        <span>Pick a drive and confirm in Steam's window, with ✕ in Steam's controller mode or a click. Lounge comes back once the download starts.</span>
+      </span>
+      <button type="button" class="waiting-stop" onclick={stopWaitingForInstall}>Stop waiting</button>
+    </section>
+  {/if}
+
+  {#if notice}
+    <p class="notice" role="status">{notice}</p>
   {/if}
 
   {#if connectDialog}
@@ -2058,6 +2247,84 @@
   @keyframes fade-in {
     from {
       opacity: 0;
+    }
+  }
+
+  .waiting {
+    position: fixed;
+    z-index: 25;
+    left: 50%;
+    bottom: 72px;
+    width: min(760px, calc(100vw - 48px));
+    box-sizing: border-box;
+    padding: 18px 22px;
+    border-radius: 20px;
+    background: rgba(28, 28, 32, 0.94);
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+    transform: translateX(-50%);
+    display: flex;
+    align-items: center;
+    gap: 16px;
+  }
+
+  .spinner {
+    flex-shrink: 0;
+    width: 32px;
+    height: 32px;
+    box-sizing: border-box;
+    border-radius: 999px;
+    border: 3px solid rgba(255, 255, 255, 0.15);
+    border-top-color: var(--text);
+    animation: spin 0.9s linear infinite;
+  }
+
+  .waiting-text {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+    font-size: 14px;
+    color: var(--text-secondary);
+  }
+
+  .waiting-text strong {
+    font-size: 16px;
+    color: var(--text);
+  }
+
+  .waiting-stop {
+    flex-shrink: 0;
+    height: 40px;
+    padding: 0 16px;
+    border-radius: 999px;
+    border: 1px solid rgba(255, 255, 255, 0.16);
+    background: rgba(255, 255, 255, 0.08);
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+  }
+
+  .notice {
+    position: fixed;
+    z-index: 26;
+    top: 96px;
+    right: 64px;
+    max-width: 420px;
+    margin: 0;
+    padding: 14px 18px;
+    border-radius: 16px;
+    background: rgba(28, 28, 32, 0.94);
+    border: 1px solid rgba(48, 209, 88, 0.35);
+    box-shadow: 0 16px 40px rgba(0, 0, 0, 0.45);
+    font-size: 15px;
+    font-weight: 600;
+  }
+
+  @keyframes spin {
+    to {
+      transform: rotate(360deg);
     }
   }
 </style>

@@ -1,4 +1,4 @@
-import type { Friend, GameDetails, Picture, StoreInfo } from "./types";
+import type { Friend, Game, GameDetails, Picture, StoreInfo } from "./types";
 
 export type DetailAction = "play" | "achievements" | "folder" | "options";
 
@@ -46,6 +46,12 @@ export const creditsLine = (store: StoreInfo | null): string | null => {
 export const friendsPlaying = (friends: Friend[], gameName: string): Friend[] => {
   const wanted = gameName.trim().toLowerCase();
   return friends.filter((friend) => friend.game?.trim().toLowerCase() === wanted);
+};
+
+/** Games you own but haven't installed, minus the ones already on this PC. */
+export const notInstalledOnly = (owned: Game[], installed: Game[]): Game[] => {
+  const here = new Set(installed.map((game) => game.id));
+  return owned.filter((game) => !here.has(game.id)).map((game) => ({ ...game, installed: false }));
 };
 
 export const libraryFolder = (installDir: string | null): string | null => {

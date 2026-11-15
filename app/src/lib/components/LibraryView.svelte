@@ -127,7 +127,11 @@
       {#if search}
         No games match “{search}”.
       {:else}
-        {activeFilter === "hidden" ? "You haven't hidden any games." : "No games here."}
+        {activeFilter === "hidden"
+          ? "You haven't hidden any games."
+          : activeFilter === "not-installed"
+            ? "Every Steam game you own is installed."
+            : "No games here."}
       {/if}
     </p>
   {:else}
@@ -155,6 +159,11 @@
                 <span class="badge"><span class="live-dot"></span>Now playing</span>
               {:else if game.download}
                 <DownloadProgress download={game.download} />
+              {:else if !game.installed}
+                <span class="badge muted">
+                  <svg aria-hidden="true" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M7 18a4.5 4.5 0 0 1-.5-9A6 6 0 0 1 18 8a4 4 0 0 1 0 8" /><path d="M12 12v8M9 17l3 3 3-3" /></svg>
+                  Not installed
+                </span>
               {/if}
             </span>
             <span class="name">{game.name}</span>
@@ -359,6 +368,10 @@
     font-size: 12px;
     font-weight: 600;
     color: var(--live-text);
+  }
+
+  .badge.muted {
+    color: var(--text-secondary);
   }
 
   .live-dot {

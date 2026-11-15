@@ -1,0 +1,59 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<title>Launcher — Installer un jeu, étape 2</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&amp;family=Fraunces:ital,wght@1,700&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0;background:#0A0A0C}
+a{color:#F5F5F7;text-decoration:none}a:hover{color:#FFFFFF}
+</style>
+</helmet>
+<div style="width: 1440px; height: 900px; position: relative; overflow: hidden; background: #0A0A0C; color: #F5F5F7; font-family: Inter, -apple-system, 'Segoe UI', sans-serif">
+  <div aria-hidden="true" style="position: absolute; inset: 0; background: radial-gradient(45% 65% at 74% 32%, #5C6BC0D9 0%, transparent 72%), linear-gradient(160deg, #1A2340 0%, #0B0F1C 100%)"></div>
+  <div aria-hidden="true" style="position: absolute; inset: 0; background: rgba(5,5,7,.7)"></div>
+
+  <div role="img" aria-label="La fenêtre d'installation de Steam, au premier plan" style="position: absolute; left: 50%; top: 46%; transform: translate(-50%, -50%); width: 600px; height: 420px; border-radius: 10px; background: #2A2D33; border: 1px solid #4A4E57; box-shadow: 0 30px 90px rgba(0,0,0,.7); display: flex; flex-direction: column; overflow: hidden">
+    <div style="height: 38px; padding: 0 14px; display: flex; align-items: center; justify-content: space-between; background: #1F2126; font-size: 13px; color: #C7CAD1">
+      <span>Fenêtre de Steam</span>
+      <span aria-hidden="true" style="display: flex; gap: 14px; color: #8A8F99">— ✕</span>
+    </div>
+    <div style="flex: 1; padding: 26px; display: flex; flex-direction: column; gap: 14px">
+      <span style="font-size: 20px; font-weight: 600; color: #E6E8EC">Installer Cité de Verre</span>
+      <span style="height: 14px; width: 70%; border-radius: 4px; background: #3A3E46"></span>
+      <span style="height: 14px; width: 55%; border-radius: 4px; background: #3A3E46"></span>
+      <span style="margin-top: 8px; height: 40px; border-radius: 6px; background: #353941; border: 1px solid #4A4E57; display: flex; align-items: center; padding: 0 12px; font-size: 13px; color: #A9AEB8">Choix du disque · taille du jeu · espace nécessaire</span>
+      <span style="height: 14px; width: 40%; border-radius: 4px; background: #3A3E46"></span>
+      <span style="margin-top: auto; align-self: flex-end; display: flex; gap: 10px">
+        <span style="padding: 10px 22px; border-radius: 6px; background: #3A3E46; font-size: 14px; color: #C7CAD1">Annuler</span>
+        <span style="padding: 10px 22px; border-radius: 6px; background: #4C7DD9; font-size: 14px; font-weight: 600; color: #FFFFFF">Installer</span>
+      </span>
+    </div>
+  </div>
+
+  <section aria-live="polite" style="position: absolute; left: 50%; bottom: 64px; transform: translateX(-50%); width: 760px; box-sizing: border-box; padding: 18px 22px; border-radius: 20px; background: rgba(28,28,32,.94); border: 1px solid rgba(255,255,255,.12); box-shadow: 0 20px 60px rgba(0,0,0,.5); display: flex; align-items: center; gap: 16px">
+    <span aria-hidden="true" style="width: 36px; height: 36px; border-radius: 999px; border: 3px solid rgba(255,255,255,.15); border-top-color: #F5F5F7; box-sizing: border-box; flex-shrink: 0"></span>
+    <span style="flex: 1; display: flex; flex-direction: column; gap: 3px">
+      <strong style="font-size: 16px">En attente de Steam</strong>
+      <span style="font-size: 14px; color: #AEAEB2">Choisis le disque et confirme dans la fenêtre de Steam : ✕ si Steam est en mode manette, sinon un clic. Lounge revient dès que le téléchargement démarre.</span>
+    </span>
+    <span style="display: flex; align-items: center; gap: 8px; font-size: 14px; color: #AEAEB2; flex-shrink: 0"><span style="width: 24px; height: 24px; box-sizing: border-box; border-radius: 999px; border: 1.5px solid #8E8E93; display: flex; align-items: center; justify-content: center; color: #F5F5F7"><svg aria-hidden="true" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><circle cx="12" cy="12" r="7"></circle></svg></span>Ne plus attendre</span>
+  </section>
+  <p style="position: absolute; left: 64px; top: 36px; margin: 0; font-size: 13px; color: #8E8E93">Étape 2 · Lounge met la fenêtre de Steam devant lui, même en plein écran, et attend en arrière-plan</p>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":900}}'>
+class Component extends DCLogic {
+  renderVals() {
+    return {};
+  }
+}
+</script>
+</body>
+</html>

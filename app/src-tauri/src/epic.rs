@@ -155,6 +155,7 @@ fn to_game(install: &Install, catalog: &HashMap<String, CatalogEntry>, play_log:
         play_time: played.map(|played| played.minutes),
         recent_play_time: None,
         images: entry.map(|entry| entry.images.clone()).unwrap_or_default(),
+        installed: true,
         hidden: false,
         download: None,
         store: Store::Epic,

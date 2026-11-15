@@ -54,6 +54,8 @@ pub struct Game {
     pub recent_play_time: Option<u64>,
     pub launch_uri: String,
     pub images: GameImages,
+    /// False for a Steam game you own but haven't installed.
+    pub installed: bool,
     pub hidden: bool,
     pub download: Option<Download>,
 }

@@ -4,9 +4,9 @@ import { getCurrentWebviewWindow } from "@tauri-apps/api/webviewWindow";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import type { PadAction } from "./input/gamepad-mapping";
 import { hueOf } from "./format";
-import { previewAchievements, previewLibrary, previewSessions } from "./preview-library";
+import { previewAchievements, previewLibrary, previewOwned, previewSessions } from "./preview-library";
 import type { Downloads } from "./downloads";
-import type { AchievementsResult, AudioOutput, AvailableUpdate, Battery, Friend, FriendsResult, Game, PlaySession, Preferences, Session, Toggle, Volume, GameDetails, Picture } from "./types";
+import type { AchievementsResult, AudioOutput, AvailableUpdate, Battery, Friend, FriendsResult, Game, InstallWindowNews, OwnedResult, PlaySession, Preferences, SteamLibrary, Session, Toggle, Volume, GameDetails, Picture } from "./types";
 
 const runsInTauri = typeof window !== "undefined" && "__TAURI_INTERNALS__" in window;
 
@@ -128,6 +128,44 @@ export const setFriendPinned = async (friendId: string, pinned: boolean): Promis
     return;
   }
   await invoke("set_friend_pinned", { friendId, pinned });
+};
+
+export const loadOwnedGames = async (): Promise<OwnedResult> => {
+  if (!runsInTauri) {
+    return { status: "ready", games: previewOwned() };
+  }
+  return invoke<OwnedResult>("get_owned_games");
+};
+
+export const loadSteamLibraries = async (): Promise<SteamLibrary[]> => {
+  if (!runsInTauri) {
+    return [
+      { path: "C:\\Program Files (x86)\\Steam", freeBytes: 248e9, totalBytes: 478e9 },
+      { path: "D:\\SteamLibrary", freeBytes: 777e9, totalBytes: 1000e9 },
+    ];
+  }
+  return invoke<SteamLibrary[]>("get_steam_libraries");
+};
+
+/** Opens Steam's install window in front of Lounge for a game you own but haven't installed. */
+export const installGame = async (game: Game): Promise<void> => {
+  const appId = Number(game.id.replace(/^steam:/, ""));
+  if (runsInTauri && Number.isInteger(appId)) {
+    await invoke("install_steam_game", { appId, name: game.name });
+  }
+};
+
+export const bringLoungeBack = async (): Promise<void> => {
+  if (runsInTauri) {
+    await invoke("bring_lounge_back");
+  }
+};
+
+export const onSteamInstallWindow = async (handle: (news: InstallWindowNews) => void): Promise<() => void> => {
+  if (!runsInTauri) {
+    return () => {};
+  }
+  return listen<InstallWindowNews>("steam-install-window", (event) => handle(event.payload));
 };
 
 export const loadPlayHistory = async (): Promise<PlaySession[]> => {

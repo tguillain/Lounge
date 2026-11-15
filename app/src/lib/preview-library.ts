@@ -13,6 +13,7 @@ const previewGame = (name: string, store: Store, hoursAgo: number, sizeGb: numbe
   playTime: store === "epic" ? null : Math.round(playedHours * 60),
   recentPlayTime: store === "epic" ? null : (RECENT_PREVIEW_MINUTES[name] ?? 0),
   launchUri: "",
+  installed: true,
   images: { hero: null, logo: null, logoIsDark: false, header: null, cover: null },
   hidden: false,
   download: name === "The Depths" ? { kind: "update", state: "downloading", percent: 45 } : null,
@@ -28,6 +29,25 @@ export const previewLibrary = (): Game[] => [
   previewGame("Orbit", "steam", 2000, 15, 17),
   previewGame("Workshop 9", "steam", 0, 2, 0),
 ];
+
+/** Steam games the preview owns but hasn't installed. */
+export const previewOwned = (): Game[] =>
+  [
+    ["Glass City", 3840, 900],
+    ["White Rally", 2460, 1500],
+    ["Pixel Monk", 1080, 3000],
+    ["The Chains", 540, 6000],
+    ["Station Delta", 0, 0],
+    ["Archipelago", 0, 0],
+  ].map(([name, minutes, daysAgo]) => ({
+    ...previewGame(String(name), "steam", 0, 0, Number(minutes) / 60),
+    id: `preview:owned:${name}`,
+    lastPlayed: daysAgo === 0 ? 0 : Math.floor(Date.now() / 1000) - Number(daysAgo) * 86_400,
+    sizeOnDisk: 0,
+    recentPlayTime: 0,
+    installed: false,
+    download: null,
+  }));
 
 /** Seven weeks of evenings, with a few days off, for the browser preview. */
 export const previewSessions = (): PlaySession[] => {
